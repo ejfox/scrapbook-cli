@@ -7,6 +7,8 @@ import { format } from "date-fns";
 import { execSync } from "child_process";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import axios from "axios";
+import fs from "fs";
 dotenv.config();
 
 export const scrapTypeSymbols = {
@@ -29,7 +31,10 @@ const supabase = createClient(
   const instructions = `Welcome to the scrapbook CLI! Up/down keys navigate, right arrow copies the URL to the clipboard. Press spacebar to view the summary. Press q to quit.`;
 
   const loadBookmarks = async () => {
-    const { data, error } = await supabase.from("scraps").select("*");
+    const { data, error } = await supabase
+      .from("scraps")
+      .select("*")
+      .order("created_at", { ascending: false });
     if (error) {
       console.error("Error loading bookmarks:", error);
       return [];
@@ -63,7 +68,7 @@ const supabase = createClient(
     "metadata",
     "scrap_id",
   ];
-  const viewHeaders = ["created_at", "scrap_id", "source", "public_url"];
+  const viewHeaders = ["created_at", "scrap_id", "source", "content"];
 
   const tableData = {
     headers: viewHeaders,
@@ -97,7 +102,7 @@ const supabase = createClient(
         keys: true,
         fg: "green",
         label: "Bookmarks",
-        columnWidth: [15, 15, 15, 40],
+        columnWidth: [8, 8, 8, 40],
         vi: true,
         style: {
           header: {
@@ -139,14 +144,16 @@ const supabase = createClient(
         parent: screen,
         top: "center",
         left: "center",
-        height: "80%",
-        width: "80%",
-        border: null,
-        padding: 1,
+        height: "92%",
+        width: "92%",
+        // border: null,
+        border: {
+          type: "line",
+        },
+        padding: 10,
         style: {
-          border: {
-            fg: "green",
-          },
+          // fg: "white",
+          // bg: "black",
         },
       });
 
@@ -165,7 +172,29 @@ const supabase = createClient(
 
       alertBox.setContent(instructions);
 
-      screen.key(["escape", "q", "C-c"], () => process.exit(0));
+      screen.key(["q", "C-c"], () => process.exit(0));
+
+      // if we hit esc, check if the summaryBox is open, close it
+      // check if we searchin? stop searching, return to normal view
+      screen.key(["escape"], () => {
+        if (summaryBox.visible) {
+          summaryBox.hide();
+          screen.render();
+        }
+
+        if (currentBookmarks !== bookmarks) {
+          currentBookmarks = bookmarks;
+          const coloredTableData = {
+            headers: tableData.headers,
+            data: tableData.data.map((row) => {
+              const color = row.color;
+              return row.map((cell) => chalk.hex(color)(cell));
+            }),
+          };
+          table.setData(coloredTableData);
+          screen.render();
+        }
+      });
 
       let currentSummaryInterval;
       const animDuration = 10;
@@ -183,10 +212,81 @@ const supabase = createClient(
 
         const bookmark = currentBookmarks[index];
         const summary = headers
-          .map((header) => `${header}: ${bookmark[header]}`)
+          .map((header) => {
+            const value = bookmark[header];
+            return `${header}: ${
+              typeof value === "string" ? value : JSON.stringify(value)
+            }`;
+          })
           .join("\n\n");
 
         let charIndex = 0;
+
+        // console.log bookmark to the alertBox
+        alertBox.setContent(JSON.stringify(bookmark.metadata, null, 2));
+
+        // if (bookmark.metadata) {
+        //   let screenshotUrl = null;
+        //   if (bookmark.metadata.screenshotUrl) {
+        //     screenshotUrl = bookmark.metadata.screenshotUrl;
+        //   } else if (bookmark.metadata.images) {
+        //     if (!bookmark.metadata.images.length) {
+        //       return;
+        //     }
+        //     screenshotUrl = bookmark.metadata.images[0];
+        //   }
+
+        //   if (!screenshotUrl) {
+        //     return;
+        //   }
+        //   // tell the alert box we are fetching the screenshot
+        //   alertBox.setContent("Fetching screenshot: " + screenshotUrl);
+
+        //   try {
+        //     axios
+        //       .get(screenshotUrl, { responseType: "arraybuffer" })
+        //       .then((response) => {
+        //         // alert box the size of the screenshot
+        //         alertBox.setContent(
+        //           `Fetched screenshot: ${screenshotUrl} (${response.data.byteLength} bytes)`
+        //         );
+
+        //         // wow we actually need to put this in a /tmp/ folder so it can be read by blessed.image
+        //         // fs.writeFileSync("/tmp/screenshot.png", response.data)
+        //         // we need to do a .then() on the writeFileSync to make sure it's done before we try to read it
+        //         fs.writeFile("./tmp/screenshot.png", response.data, (err) => {
+        //           if (err) {
+        //             alertBox.setContent("Error writing screenshot: " + err);
+        //           } else {
+        //             alertBox.setContent(
+        //               "Wrote screenshot to /tmp/screenshot.png"
+        //             );
+        //             // refactor to use blessed image
+        //             const image = blessed.image({
+        //               // parent: screen,
+        //               // parent: box,
+        //               top: "center",
+        //               left: "center",
+        //               // width: "25%",
+        //               width: 10,
+        //               // height: "80%",
+        //               file: "./tmp/screenshot.png",
+        //               search: false,
+        //               ansi: false,
+        //             });
+        //             // append the image to the box
+        //             box.append(image);
+
+        //             screen.render();
+        //           }
+        //         });
+        //       });
+        //   } catch (e) {
+        //     alertBox.setContent("Error fetching screenshot: " + e);
+        //   }
+
+        //   screen.render();
+        // }
 
         const typeOutSummary = () => {
           if (charIndex < summary.length) {
@@ -313,10 +413,23 @@ const supabase = createClient(
           const { data, error } = await supabase
             .from("scraps")
             .select("*")
-            .textSearch("content", text, {
-              type: "websearch",
-              config: "english",
-            });
+            // .textSearch("content", text, {
+            //   type: "websearch",
+            //   config: "english",
+            // });
+            // expand to tags, content, and metadata
+            .textSearch(
+              ["content", "tags", "summary"],
+              text,
+              {
+                type: "websearch",
+                config: "english",
+              },
+              { columns: "*" }
+            )
+            .order("created_at", { ascending: false });
+          // or, order by relevance
+          // .order("rank", { ascending: false });
 
           if (error) {
             alertBox.setContent(`Error searching bookmarks: ${error.message}`);
@@ -361,21 +474,77 @@ const supabase = createClient(
         screen.render();
       });
 
+      // screen.key(["z"], () => {
+      //   summaryBox.show();
+      //   const selected = table.rows.selected;
+      //   const bookmark = currentBookmarks[selected];
+      //   const summary = headers
+      //     .map((header) => {
+      //       const value = bookmark[header];
+      //       return `${header}: ${
+      //         typeof value === "string" ? value : JSON.stringify(value)
+      //       }`;
+      //     })
+      //     .join("\n\n");
+
+      //   summaryBox.setContent(summary);
+      //   screen.render();
+
+      //   screen.key(["z"], () => {
+      //     summaryBox.hide();
+      //     screen.render();
+      //   });
+      // });
+
+      // refactor to fix bug with summary box
       screen.key(["z"], () => {
-        summaryBox.show();
-        const selected = table.rows.selected;
-        const bookmark = currentBookmarks[selected];
-        const summary = headers
-          .map((header) => `${header}: ${bookmark[header]}`)
-          .join("\n\n");
-
-        summaryBox.setContent(summary);
-        screen.render();
-
-        screen.key(["z"], () => {
+        if (summaryBox.visible) {
           summaryBox.hide();
+        } else {
+          // empty the summary box
+          summaryBox.setContent("");
+          summaryBox.show();
+
+          const selected = table.rows.selected;
+          const bookmark = currentBookmarks[selected];
+          const summary = headers
+            .map((header) => {
+              const value = bookmark[header];
+              return `${header}: ${
+                typeof value === "string" ? value : JSON.stringify(value)
+              }`;
+            })
+            .join("\n\n");
+
+          let charIndex = 0;
+          const words = summary.split(" ");
+          const typeOutSummary = () => {
+            if (charIndex < words.length) {
+              summaryBox.setContent(words.slice(0, charIndex + 1).join(" "));
+              screen.render();
+              charIndex++;
+            } else {
+              clearInterval(summaryInterval);
+              const image = blessed.image({
+                // parent: screen,
+                parent: summaryBox,
+                top: "center",
+                left: "center",
+                width: "10%",
+                file: "./tmp/screenshot.png",
+                // ansi: false,
+                // type: "overlay",
+              });
+
+              summaryBox.append(image);
+
+              screen.render();
+            }
+          };
+
+          const summaryInterval = setInterval(typeOutSummary, 50);
           screen.render();
-        });
+        }
       });
 
       screen.key(["left"], () => {
