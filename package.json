@@ -9,6 +9,7 @@
     "start": "node index.mjs list"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
     "axios": "^1.7.2",
     "blessed": "^0.1.81",
     "blessed-contrib": "^4.11.0",
@@ -16,6 +17,7 @@
     "commander": "^12.1.0",
     "d3": "^7.9.0",
     "date-fns": "^3.6.0",
+    "dotenv": "^16.4.5",
     "fuse.js": "^7.0.0",
     "terminal-image": "^2.0.0"
   }
