@@ -29,7 +29,7 @@ const supabase = createClient(
 );
 
 (async () => {
-  const instructions = `Welcome to the scrapbook CLI! Up/down keys navigate, right arrow copies the URL to the clipboard. Press spacebar to view the summary. Press q to quit.`;
+  const instructions = `Welcome to the scrapbook CLI! Up/down keys navigate, right arrow copies the URL to the clipboard. Press spacebar to open in the browser. Press Z to fullscreen the summary. Press / or 's' to search. Press q to quit.`;
 
   const loadBookmarks = async () => {
     const { data, error } = await supabase
@@ -143,9 +143,9 @@ const supabase = createClient(
         },
       });
 
-      const box = grid.set(0, 8, 9, 4, blessed.box, {
+      const box = grid.set(0, 8, 8, 4, blessed.box, {
         label: "Summary",
-        content: "Press spacebar to view the summary",
+        content: instructions,
         padding: 1,
         border: { type: "line" },
         style: {
@@ -154,9 +154,9 @@ const supabase = createClient(
         },
       });
 
-      const alertBox = grid.set(9, 8, 3, 4, blessed.box, {
+      const alertBox = grid.set(8, 8, 4, 4, blessed.box, {
         content: "",
-        padding: 1,
+        padding: 0,
         border: { type: "line" },
         style: {
           focus: { border: { fg: "yellow" } },
@@ -187,13 +187,16 @@ const supabase = createClient(
         parent: screen,
         top: "center",
         left: "center",
-        height: "92%",
-        width: "92%",
-        // border: null,
-        border: {
-          type: "line",
-        },
-        padding: 10,
+        // height: "92%",
+        // width: "92%",
+        width: "100%",
+        height: "100%",
+        border: null,
+        // border: {
+        //   type: "line",
+        // },
+        // padding: 10,
+        padding: 0,
         style: {
           // fg: "white",
           // bg: "black",
@@ -213,7 +216,9 @@ const supabase = createClient(
 
       table.setData(coloredTableData);
 
-      alertBox.setContent(instructions);
+      // alertBox.setContent(instructions);
+      // set the total rows loaded in the alertBox
+      alertBox.setContent(`Loaded ${bookmarks.length} bookmarks`);
 
       screen.key(["q", "C-c"], () => process.exit(0));
 
@@ -224,6 +229,11 @@ const supabase = createClient(
           summaryBox.hide();
 
           screen.render();
+        }
+
+        // cancel any typing that might be happening
+        if (currentSummaryInterval) {
+          clearInterval(currentSummaryInterval);
         }
 
         searchQueryBox.content = "";
@@ -262,7 +272,7 @@ const supabase = createClient(
           .map((header) => {
             const value = bookmark[header];
             return `${header}: ${
-              typeof value === "string" ? value : JSON.stringify(value)
+              typeof value === "string" ? value : JSON.stringify(value, null, 2)
             }`;
           })
           .join("\n\n");
@@ -562,14 +572,20 @@ const supabase = createClient(
 
           const selected = table.rows.selected;
           const bookmark = currentBookmarks[selected];
-          const summary = headers
+          let summary = headers
             .map((header) => {
               const value = bookmark[header];
               return `${header}: ${
-                typeof value === "string" ? value : JSON.stringify(value)
+                typeof value === "string"
+                  ? value
+                  : JSON.stringify(value, null, 2)
               }`;
             })
             .join("\n\n");
+
+          const finalMessage = `Hit escape to close`;
+
+          summary = summary.concat("\n\n" + finalMessage);
 
           let charIndex = 0;
           const words = summary.split(" ");
@@ -580,18 +596,20 @@ const supabase = createClient(
               charIndex++;
             } else {
               clearInterval(summaryInterval);
-              const image = blessed.image({
-                // parent: screen,
-                parent: summaryBox,
-                top: "center",
-                left: "center",
-                width: "10%",
-                file: "./tmp/screenshot.png",
-                // ansi: false,
-                // type: "overlay",
-              });
+              // const image = blessed.image({
+              //   // parent: screen,
+              //   parent: summaryBox,
+              //   top: "center",
+              //   left: "center",
+              //   width: "10%",
+              //   file: "./tmp/screenshot.png",
+              //   // ansi: false,
+              //   // type: "overlay",
+              //   // put it at the bottom
+              //   position: "bottom",
+              // });
 
-              summaryBox.append(image);
+              // summaryBox.append(image);
 
               screen.render();
             }
