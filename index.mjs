@@ -1,11 +1,10 @@
 import { Command } from "commander";
 import blessed from "blessed";
 import contrib from "blessed-contrib";
-import fs from "fs";
-import path from "path";
 import axios from "axios";
 import * as d3 from "d3";
-import { format, parse, formatDistance } from "date-fns";
+import chalk from "chalk";
+import { format } from "date-fns";
 import { execSync } from "child_process";
 
 (async () => {
@@ -16,8 +15,7 @@ import { execSync } from "child_process";
       const response = await axios.get(
         "http://ejfox.com/data/scrapbook/scraps.json"
       );
-      const bookmarks = response.data;
-      return bookmarks;
+      return response.data;
     } catch (error) {
       console.error("Error loading bookmarks:", error);
       return [];
@@ -26,33 +24,33 @@ import { execSync } from "child_process";
 
   const bookmarks = await loadBookmarks();
 
-  // go through the bookmarks and add a public_url field
-  // shaped like https://ejfox.com/scrapbook/${scrap_id}
   bookmarks.forEach((bookmark) => {
     bookmark[
       "public_url"
     ] = `https://ejfox.com/scrapbook/${bookmark["scrap_id"]}`;
   });
 
+  bookmarks.sort((a, b) => new Date(b.time) - new Date(a.time));
+
   const scrapTypes = Array.from(new Set(bookmarks.map((b) => b.type)));
   const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(scrapTypes);
 
-  // Determine headers dynamically
   const headers = Object.keys(bookmarks[0]);
   const viewHeaders = ["time", "scrap_id", "type", "href"];
 
-  // Prepare table data
   const tableData = {
     headers: viewHeaders,
-    data: bookmarks.map((bookmark) =>
-      viewHeaders.map((header) => {
+    data: bookmarks.map((bookmark) => {
+      const row = viewHeaders.map((header) => {
         if (header === "time") {
           return format(new Date(bookmark[header]), "yyyy-MM-dd");
         } else {
           return bookmark[header] || "";
         }
-      })
-    ),
+      });
+      row.color = colorScale(bookmark.type);
+      return row;
+    }),
   };
 
   const program = new Command();
@@ -61,7 +59,6 @@ import { execSync } from "child_process";
     .command("list")
     .description("List all bookmarks")
     .action(async () => {
-      // Initialize the terminal interface
       const screen = blessed.screen({
         smartCSR: true,
         title: "Bookmark CLI",
@@ -73,13 +70,13 @@ import { execSync } from "child_process";
         keys: true,
         fg: "green",
         label: "Bookmarks",
-        columnWidth: [10, 4, 4, 40], // Adjust width as needed
-        vi: true, // Enable vim keys
+        columnWidth: [10, 4, 4, 40],
+        vi: true,
         style: {
           header: {
             fg: "cyan",
             bold: true,
-            align: "left", // Add this line to left align the headers
+            align: "left",
           },
           cell: {
             fg: "green",
@@ -102,134 +99,33 @@ import { execSync } from "child_process";
         },
       });
 
-      // add a mapbox that shows locations of all bookmarks with a .geolocation field
-      // const map = grid.set(9, 8, 3, 4, contrib.map, {
-      //   label: "Map",
-      //   style: { border: { fg: "green" } },
-      //   focus: { border: { fg: "yellow" } },
-      // });
-      // bookmarks.forEach((bookmark) => {
-      //   if (bookmark.geolocation) {
-      //     const [longitude, latitude] = bookmark.geolocation.split(",");
-      //     map.addMarker({ lon: longitude, lat: latitude });
-      //   }
-      // });
-
-      // add a bar chart graph that shows the posts by type
-      // const bar = grid.set(9, 0, 3, 8, contrib.bar, {
-      //   label: "Bar Chart",
-      //   barWidth: 10,
-      //   barSpacing: 2,
-      //   xOffset: 1,
-      //   maxHeight: 10,
-      //   style: { border: { fg: "green" } },
-      //   focus: { border: { fg: "yellow" } },
-      // });
-      // bookmarks.forEach((bookmark) => {
-      //   bar.setData([
-      //     {
-      //       x: bookmark.type,
-      //       y: 1,
-      //     },
-      //   ]);
-      // });
-
-      const vizBoz = grid.set(9, 0, 3, 8, blessed.box, {
-        label: "Viz",
-        padding: 1,
-        border: { type: "line" },
-        style: {
-          border: { fg: "green" },
-          focus: { border: { fg: "yellow" } },
-        },
-      });
-
-      // Calculate posts per day
-      const postsPerDay = bookmarks.reduce((acc, bookmark) => {
-        const date = format(new Date(bookmark.time), "yyyy-MM-dd");
-        acc[date] = acc[date] ? acc[date] + 1 : 1;
-        return acc;
-      }, {});
-
-      // Calculate posts per day by type
-      const postsPerDayByType = bookmarks.reduce((acc, bookmark) => {
-        const date = format(new Date(bookmark.time), "yyyy-MM-dd");
-        if (!acc[date]) acc[date] = {};
-        if (!acc[date][bookmark.type]) acc[date][bookmark.type] = 0;
-        acc[date][bookmark.type]++;
-        return acc;
-      }, {});
-
-      // Sort bookmarks by time
-      bookmarks.sort((a, b) => new Date(a.time) - new Date(b.time));
-
-      // Sort dates and limit to past 7 days
-      const sortedDates = Object.keys(postsPerDayByType).sort(
-        (a, b) => new Date(a) - new Date(b)
-      );
-      const past7Days = sortedDates.slice(-7);
-
-      const barData = {
-        titles: past7Days.map((date, index) => `T-${7 - index}`),
-        data: [],
-        barColors: [],
-      };
-
-      // Aggregate data for stacked bar chart
-      // past7Days.forEach((date) => {
-      //   let totalPosts = 0;
-      //   scrapTypes.forEach((type) => {
-      //     const count = postsPerDayByType[date][type] || 0;
-      //     totalPosts += count;
-      //     barData.data.push(count);
-      //     barData.barColors.push(colorScale(type));
-      //   });
-      // });
-
-      // // Create the stacked bar chart
-      // const bar = contrib.stackedBar({
-      //   label: "Posts per day",
-      //   barWidth: 4,
-      //   barSpacing: 2,
-      //   xOffset: 1,
-      //   maxHeight: 10,
-      //   style: {
-      //     border: { fg: "green" },
-      //     bar: { fg: "green" },
-      //     label: { fg: "white" },
-      //     text: { fg: "white" },
-      //   },
-      //   barBgColor: "green",
-      //   data: barData,
-      //   width: "100%-2",
-      //   height: "100%-2",
-      // });
-
-      // vizBoz.append(bar);
-
       const alertBox = grid.set(9, 8, 3, 4, blessed.box, {
-        // label: "Alert",
         content: "",
         padding: 1,
         border: { type: "line" },
         style: {
-          // border: { fg: "green" },
           focus: { border: { fg: "yellow" } },
         },
       });
 
-      table.setData(tableData);
+      const coloredTableData = {
+        headers: tableData.headers,
+        data: tableData.data.map((row) => {
+          const color = row.color;
+          return row.map((cell) => chalk.hex(color)(cell));
+        }),
+      };
 
-      // add the instructions to the alert box
+      table.setData(coloredTableData);
+
       alertBox.setContent(instructions);
 
       screen.key(["escape", "q", "C-c"], () => process.exit(0));
 
       let currentSummaryInterval;
-      const animDuration = 1;
+      const animDuration = 50;
       const lettersAtAATime = 3;
       const viewSummary = (index) => {
-        // Clear any previous animation
         if (currentSummaryInterval) {
           clearInterval(currentSummaryInterval);
         }
@@ -241,7 +137,6 @@ import { execSync } from "child_process";
 
         let charIndex = 0;
 
-        // Function to type out the summary
         const typeOutSummary = () => {
           if (charIndex < summary.length) {
             const endIndex = Math.min(
@@ -256,7 +151,6 @@ import { execSync } from "child_process";
           }
         };
 
-        // Start the typing animation
         currentSummaryInterval = setInterval(typeOutSummary, animDuration);
       };
 
@@ -272,13 +166,31 @@ import { execSync } from "child_process";
         viewSummary(index);
       });
 
+      // screen.key(["space"], () => {
+      //   const selected = table.rows.selected;
+      //   stopCurrentAnimation();
+      //   viewSummary(selected);
+      // });
+
+      // open the URL in browser on space
       screen.key(["space"], () => {
         const selected = table.rows.selected;
-        stopCurrentAnimation();
-        viewSummary(selected);
+        const bookmark = bookmarks[selected];
+        const href = bookmark["href"];
+        try {
+          execSync(`open ${href}`);
+          alertBox.setContent("Opening in browser: " + href);
+        } catch (error) {
+          alertBox.setContent("Error opening in browser: " + error);
+        }
+        setTimeout(() => {
+          alertBox.setContent("");
+          screen.render();
+        }, 5000);
+
+        screen.render();
       });
 
-      // Vim-style navigation
       screen.key(["j", "down"], () => {
         stopCurrentAnimation();
         viewSummary(table.rows.selected);
@@ -291,22 +203,16 @@ import { execSync } from "child_process";
         screen.render();
       });
 
-      // make it so right-arrow copies the href to the clipboard
       screen.key(["right"], () => {
         const selected = table.rows.selected;
         const bookmark = bookmarks[selected];
         const href = bookmark["href"];
-        // copy to clipboard with exec pbcopy
         try {
           execSync(`echo ${href} | pbcopy`);
-          // console.log("copied to clipboard: ", href);
           alertBox.setContent("Copied to clipboard: " + href);
         } catch (error) {
-          // console.error("Error copying to clipboard:", error);
           alertBox.setContent("Error copying to clipboard: " + error);
         }
-
-        // clear the alertbox after 5 seconds
         setTimeout(() => {
           alertBox.setContent("");
           screen.render();
@@ -314,6 +220,25 @@ import { execSync } from "child_process";
 
         screen.render();
       });
+
+      screen.key(["left"], () => {
+        const selected = table.rows.selected;
+        const bookmark = bookmarks[selected];
+        const public_url = bookmark["public_url"];
+        try {
+          execSync(`echo ${public_url} | pbcopy`);
+          alertBox.setContent("Copied to clipboard: " + public_url);
+        } catch (error) {
+          alertBox.setContent("Error copying to clipboard: " + error);
+        }
+        setTimeout(() => {
+          alertBox.setContent("");
+          screen.render();
+        }, 5000);
+
+        screen.render();
+      });
+
       table.focus();
       screen.render();
     });
