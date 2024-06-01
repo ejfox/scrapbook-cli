@@ -14,6 +14,7 @@ dotenv.config();
 export const scrapTypeSymbols = {
   pinboard: "■", // U+25A0
   "mastodon-post": "▲", // U+25B2
+  mastodon: "▲", // U+25B2
   arena: "●", // U+25BC
   github: "◆", // U+25C6
   "github-star": "◆", // U+25C6
@@ -55,7 +56,20 @@ const supabase = createClient(
   bookmarks.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const scrapTypes = Array.from(new Set(bookmarks.map((b) => b.source)));
-  const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(scrapTypes);
+  // const colorScale = d3.scaleOrdinal(d3.schemeCategory10).domain(scrapTypes);
+  // use different shades of blue
+  const colorScale = d3.scaleOrdinal([
+    // cyberpunk green
+    "#00FF00",
+    // cyberpunk blue
+    "#00FFFF",
+    // cyberpunk yellow
+    "#FFFF00",
+    // cyberpunk orange
+    "#FFA500",
+    // cyberpunk gray
+    "#808080",
+  ]);
 
   const headers = [
     "id",
@@ -76,6 +90,10 @@ const supabase = createClient(
       const row = viewHeaders.map((header) => {
         if (header === "created_at") {
           return format(new Date(bookmark[header]), "yyyy-MM-dd");
+        } else if (header === "source") {
+          // get the correct symbol for this source
+          const scrapTypeSymbol = scrapTypeSymbols[bookmark[header]] || "";
+          return `${scrapTypeSymbol} ${bookmark[header] || ""}`;
         } else {
           return bookmark[header] || "";
         }
@@ -93,7 +111,12 @@ const supabase = createClient(
     .action(async () => {
       const screen = blessed.screen({
         smartCSR: true,
-        title: "Bookmark CLI",
+        title: "ejfox.com/scrapbook CLI",
+        // other cool options
+        dockBorders: true,
+        fullUnicode: true,
+        autoPadding: true,
+        // warnings: true,
       });
 
       const grid = new contrib.grid({ rows: 12, cols: 12, screen: screen });
@@ -140,6 +163,26 @@ const supabase = createClient(
         },
       });
 
+      // an itty bitty box for the search query, if there is one
+      // in the lower left corner, in red
+      const searchQueryBox = blessed.box({
+        parent: screen,
+        top: "90%",
+        left: "2%",
+        height: 3,
+        width: 20,
+        content: "",
+        padding: 1,
+        style: {
+          // fg: "red",
+          bg: "red",
+          fg: "white",
+        },
+      });
+
+      // hide it
+      searchQueryBox.hide();
+
       const summaryBox = blessed.box({
         parent: screen,
         top: "center",
@@ -179,8 +222,12 @@ const supabase = createClient(
       screen.key(["escape"], () => {
         if (summaryBox.visible) {
           summaryBox.hide();
+
           screen.render();
         }
+
+        searchQueryBox.content = "";
+        searchQueryBox.hide();
 
         if (currentBookmarks !== bookmarks) {
           currentBookmarks = bookmarks;
@@ -331,7 +378,8 @@ const supabase = createClient(
         const selected = table.rows.selected;
         updateSummary(selected);
         const bookmark = currentBookmarks[selected];
-        const href = bookmark["public_url"];
+        // const href = bookmark["public_url"];
+        const href = bookmark.metadata.href;
         try {
           execSync(`open ${href}`);
           alertBox.setContent("Opening in browser: " + href);
@@ -377,7 +425,7 @@ const supabase = createClient(
         screen.render();
       });
 
-      screen.key(["s"], () => {
+      screen.key(["s", "/"], () => {
         const searchBox = blessed.textbox({
           parent: screen,
           top: "center",
@@ -404,6 +452,10 @@ const supabase = createClient(
 
           searchBox.setContent("");
           screen.remove(searchBox);
+
+          // show the search query box
+          searchQueryBox.setContent(text);
+          searchQueryBox.show();
 
           if (!text) {
             return;
@@ -500,6 +552,9 @@ const supabase = createClient(
       screen.key(["z"], () => {
         if (summaryBox.visible) {
           summaryBox.hide();
+          // empty and hide the search query box
+          searchBox.setContent("");
+          searchBox.hide();
         } else {
           // empty the summary box
           summaryBox.setContent("");
