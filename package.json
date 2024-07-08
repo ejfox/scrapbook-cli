@@ -1,10 +1,10 @@
 {
-  "name": "scrapbook-cli",
+  "name": "scrapview",
   "version": "1.0.0",
   "description": "A cyberpunk-inspired CLI for managing and viewing your digital scrapbook",
-  "main": "scrapbook-cli.js",
+  "main": "index.mjs",
   "bin": {
-    "scrapbook-cli": "./scrapbook-cli.js"
+    "scrapview": "./index.mjs"
   },
   "keywords": [
     "cli",
