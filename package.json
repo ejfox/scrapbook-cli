@@ -1,6 +1,6 @@
 {
   "name": "scrapbook-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A CLI tool for viewing and managing your scrapbook entries",
   "main": "scrapbook-cli.js",
   "bin": {
