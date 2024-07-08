@@ -357,6 +357,21 @@ function setupKeyboardShortcuts(
     }, 5000);
     screen.render();
   });
+
+  // Refresh key
+  screen.key(["r"], async () => {
+    alertBox.setContent("Refreshing bookmarks...");
+    screen.render();
+    const newBookmarks = await reloadBookmarks(updateDisplay);
+    bookmarks.length = 0;
+    bookmarks.push(...newBookmarks);
+    alertBox.setContent(`Refreshed ${newBookmarks.length} bookmarks`);
+    screen.render();
+    setTimeout(() => {
+      alertBox.setContent("");
+      screen.render();
+    }, 3000);
+  });
 }
 
 async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay) {
@@ -448,6 +463,12 @@ function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
   }
 }
 
+async function reloadBookmarks(updateDisplay) {
+  const newBookmarks = await loadBookmarks();
+  updateDisplay(newBookmarks);
+  return newBookmarks;
+}
+
 async function main() {
   const bookmarks = await loadBookmarks();
   const colorScale = createColorScale(bookmarks);
@@ -486,7 +507,9 @@ async function main() {
     searchQueryBox,
     fullScreenSummaryBox,
     bookmarks,
-    updateDisplay
+    updateDisplay,
+    currentBookmarks,
+    bookmarks
   );
 
   table.focus();
@@ -512,7 +535,7 @@ Navigation:
   S or /         Search bookmarks
   Esc            Exit search or full-screen view
   Q              Quit the application
-
+  R              Refresh bookmarks  
 Press 'h' while in the application to display this help.
   `;
 

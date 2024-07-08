@@ -38,6 +38,7 @@ scrapbook-cli list
 - `Space`: Open entry in browser
 - `z`: Toggle full-screen summary view
 - `/` or `s`: Search entries
+- `r`: Refresh entries
 - `Esc`: Exit search or full-screen view
 - `q`: Quit
 
