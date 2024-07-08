@@ -1,12 +1,25 @@
 {
   "name": "scrapbook-cli",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "A cyberpunk-inspired CLI for managing and viewing your digital scrapbook",
+  "main": "scrapbook-cli.js",
+  "bin": {
+    "scrapbook-cli": "./scrapbook-cli.js"
+  },
+  "keywords": [
+    "cli",
+    "scrapbook",
+    "cyberpunk",
+    "terminal",
+    "bookmarks",
+    "supabase"
+  ],
   "author": "EJ Fox <ejfox@ejfox.com>",
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "start": "node index.mjs list"
+    "start": "node index.mjs list",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.4",
