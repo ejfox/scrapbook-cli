@@ -13,6 +13,7 @@ import fs from "fs";
 
 dotenv.config();
 
+// Constants
 const SCRAP_TYPE_SYMBOLS = {
   pinboard: "■",
   "mastodon-post": "▲",
@@ -45,11 +46,13 @@ const ALL_HEADERS = [
   "scrap_id",
 ];
 
+// Initialize Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
+// Load bookmarks from Supabase
 async function loadBookmarks() {
   const { data, error } = await supabase
     .from("scraps")
@@ -69,11 +72,35 @@ async function loadBookmarks() {
   }));
 }
 
+async function displayScrapJson(scrap_id) {
+  try {
+    const { data, error } = await supabase
+      .from("scraps")
+      .select("*")
+      .eq("scrap_id", scrap_id)
+      .single();
+
+    if (error) throw error;
+
+    if (data) {
+      // delete the embedding data, it's too big
+      delete data.embedding;
+      console.log(JSON.stringify(data, null, 2));
+    } else {
+      console.log(`No scrap found with ID: ${scrap_id}`);
+    }
+  } catch (error) {
+    console.error("Error fetching scrap:", error.message);
+  }
+}
+
+// Create color scale for different scrap types
 function createColorScale(bookmarks) {
   const scrapTypes = Array.from(new Set(bookmarks.map((b) => b.source)));
   return d3.scaleOrdinal(COLOR_PALETTE).domain(scrapTypes);
 }
 
+// Format table data for display
 function formatTableData(bookmarks, colorScale) {
   return {
     headers: VIEW_HEADERS,
@@ -94,6 +121,7 @@ function formatTableData(bookmarks, colorScale) {
   };
 }
 
+// Create main screen
 function createScreen() {
   return blessed.screen({
     smartCSR: true,
@@ -104,10 +132,12 @@ function createScreen() {
   });
 }
 
+// Create grid layout
 function createGrid(screen) {
   return new contrib.grid({ rows: 12, cols: 12, screen: screen });
 }
 
+// Create main table for bookmarks
 function createTable(grid) {
   return grid.set(0, 0, 12, 8, contrib.table, {
     keys: true,
@@ -132,10 +162,18 @@ function createTable(grid) {
   });
 }
 
+// Create summary box
 function createSummaryBox(grid) {
-  return grid.set(0, 8, 8, 4, blessed.box, {
-    label: "Summary",
-    content: "Welcome to the scrapbook CLI!",
+  return grid.set(0, 8, 6, 4, blessed.box, {
+    label: "Summary - press 'z' to zoom",
+    content: `Welcome to the scrapbook CLI!
+
+Use the arrow keys to navigate through bookmarks.
+Press 'space' to open a bookmark in the browser.
+Press 's' to search for bookmarks.
+Press 'z' to toggle full-screen summary view.
+Press 'q' to quit the application.`,
+
     padding: 1,
     border: { type: "line" },
     style: {
@@ -145,8 +183,9 @@ function createSummaryBox(grid) {
   });
 }
 
+// Create alert box
 function createAlertBox(grid) {
-  return grid.set(8, 8, 4, 4, blessed.box, {
+  return grid.set(10, 8, 2, 4, blessed.box, {
     content: "",
     padding: 0,
     border: { type: "line" },
@@ -156,6 +195,17 @@ function createAlertBox(grid) {
   });
 }
 
+// Create mini map for selected bookmark
+function createMiniMap(grid) {
+  return grid.set(6, 8, 4, 4, contrib.map, {
+    label: "Location",
+    style: {
+      shapeColor: "cyan",
+    },
+  });
+}
+
+// Create search query box
 function createSearchQueryBox(screen) {
   const box = blessed.box({
     parent: screen,
@@ -174,6 +224,7 @@ function createSearchQueryBox(screen) {
   return box;
 }
 
+// Create full screen summary box
 function createFullScreenSummaryBox(screen) {
   const box = blessed.box({
     parent: screen,
@@ -190,6 +241,7 @@ function createFullScreenSummaryBox(screen) {
 
 let currentSummaryInterval;
 
+// Stop current animation
 function stopCurrentAnimation() {
   if (currentSummaryInterval) {
     clearInterval(currentSummaryInterval);
@@ -197,7 +249,15 @@ function stopCurrentAnimation() {
   }
 }
 
-function viewSummary(index, currentBookmarks, summaryBox, alertBox, screen) {
+// View summary of selected bookmark
+function viewSummary(
+  index,
+  currentBookmarks,
+  summaryBox,
+  alertBox,
+  miniMap,
+  screen
+) {
   stopCurrentAnimation();
 
   const bookmark = currentBookmarks[index];
@@ -214,6 +274,9 @@ function viewSummary(index, currentBookmarks, summaryBox, alertBox, screen) {
 
   alertBox.setContent(JSON.stringify(bookmark.metadata, null, 2));
 
+  // Update mini map
+  updateMiniMap(miniMap, bookmark);
+
   const typeOutSummary = () => {
     if (charIndex < summary.length) {
       const endIndex = Math.min(charIndex + lettersAtATime, summary.length);
@@ -228,16 +291,42 @@ function viewSummary(index, currentBookmarks, summaryBox, alertBox, screen) {
   currentSummaryInterval = setInterval(typeOutSummary, animDuration);
 }
 
-function updateSummary(index, currentBookmarks, summaryBox, alertBox, screen) {
+// Update summary for selected bookmark
+function updateSummary(
+  index,
+  currentBookmarks,
+  summaryBox,
+  alertBox,
+  miniMap,
+  screen
+) {
   stopCurrentAnimation();
-  viewSummary(index, currentBookmarks, summaryBox, alertBox, screen);
+  viewSummary(index, currentBookmarks, summaryBox, alertBox, miniMap, screen);
 }
 
+// Update mini map for selected bookmark
+function updateMiniMap(miniMap, bookmark) {
+  miniMap.clearMarkers();
+  if (bookmark.metadata.latitude && bookmark.metadata.longitude) {
+    miniMap.addMarker({
+      lat: bookmark.metadata.latitude,
+      lon: bookmark.metadata.longitude,
+      color: "red",
+      char: "X",
+    });
+    miniMap.show(); // Show the map if there's location data
+  } else {
+    miniMap.hide(); // Hide the map if there's no location data
+  }
+}
+
+// Set up keyboard shortcuts
 function setupKeyboardShortcuts(
   screen,
   table,
   summaryBox,
   alertBox,
+  miniMap,
   searchQueryBox,
   fullScreenSummaryBox,
   bookmarks,
@@ -267,6 +356,7 @@ function setupKeyboardShortcuts(
       bookmarks,
       summaryBox,
       alertBox,
+      miniMap,
       screen
     );
     screen.render();
@@ -278,6 +368,7 @@ function setupKeyboardShortcuts(
       bookmarks,
       summaryBox,
       alertBox,
+      miniMap,
       screen
     );
     screen.render();
@@ -285,7 +376,7 @@ function setupKeyboardShortcuts(
 
   screen.key(["space"], () => {
     const selected = table.rows.selected;
-    updateSummary(selected, bookmarks, summaryBox, alertBox, screen);
+    updateSummary(selected, bookmarks, summaryBox, alertBox, miniMap, screen);
     const bookmark = bookmarks[selected];
     const href = bookmark.metadata.href;
     try {
@@ -374,6 +465,7 @@ function setupKeyboardShortcuts(
   });
 }
 
+// Show search box
 async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay) {
   const searchBox = blessed.textbox({
     parent: screen,
@@ -384,7 +476,7 @@ async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay) {
     border: "line",
     style: {
       border: {
-        fg: "green",
+        fg: "black",
       },
     },
   });
@@ -431,6 +523,7 @@ async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay) {
 
 let summaryInterval;
 
+// Toggle full screen summary view
 function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
   if (summaryInterval) {
     clearInterval(summaryInterval);
@@ -472,14 +565,105 @@ function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
   }
 }
 
+// Create map view
+function createMapView(bookmarks) {
+  const screen = blessed.screen({
+    smartCSR: true,
+    title: "ejfox.com/scrapbook Map View",
+  });
+
+  const grid = new contrib.grid({ rows: 12, cols: 16, screen: screen });
+  const map = grid.set(0, 0, 12, 12, contrib.map, {
+    label: "Scrapbook Map",
+  });
+
+  const infoBox = grid.set(0, 12, 12, 4, blessed.box, {
+    label: "Bookmark Info",
+    content: "Select a marker to view bookmark info",
+    scrollable: true,
+    alwaysScroll: true,
+    keys: true,
+    vi: true,
+    scrollbar: {
+      ch: " ",
+      inverse: true,
+    },
+  });
+
+  // Add points to the map based on bookmark data
+  const markers = bookmarks
+    .filter(
+      (bookmark) => bookmark.metadata.latitude && bookmark.metadata.longitude
+    )
+    .map((bookmark, index) => ({
+      lon: bookmark.metadata.longitude,
+      lat: bookmark.metadata.latitude,
+      color: "green",
+      char: "•",
+      label: bookmark.scrap_id || bookmark.id,
+      bookmarkData: bookmark,
+      index: index,
+    }));
+
+  function updateMap() {
+    map.clearMarkers();
+    markers.forEach((marker) => map.addMarker(marker));
+  }
+
+  updateMap();
+
+  let selectedMarkerIndex = -1;
+
+  function updateSelectedMarker(newIndex) {
+    if (newIndex >= 0 && newIndex < markers.length) {
+      if (selectedMarkerIndex !== -1) {
+        markers[selectedMarkerIndex].color = "green";
+        markers[selectedMarkerIndex].char = "•";
+      }
+      selectedMarkerIndex = newIndex;
+      markers[selectedMarkerIndex].color = "red";
+      markers[selectedMarkerIndex].char = "X";
+      showBookmarkInfo(markers[selectedMarkerIndex].bookmarkData);
+      updateMap();
+      screen.render();
+    }
+  }
+
+  // Handle keyboard navigation
+  screen.key(["q", "C-c"], () => process.exit(0));
+  screen.key(["up"], () => updateSelectedMarker(selectedMarkerIndex - 1));
+  screen.key(["down"], () => updateSelectedMarker(selectedMarkerIndex + 1));
+
+  // Function to show bookmark info in the info box
+  function showBookmarkInfo(bookmark) {
+    infoBox.setContent(
+      `Content: ${bookmark.content}\n\nMetadata: ${JSON.stringify(
+        bookmark.metadata,
+        null,
+        2
+      )}`
+    );
+  }
+
+  screen.render();
+}
+
+// Reload bookmarks
 async function reloadBookmarks(updateDisplay) {
   const newBookmarks = await loadBookmarks();
   updateDisplay(newBookmarks);
   return newBookmarks;
 }
 
-async function main() {
+// Main function
+async function main(options) {
   const bookmarks = await loadBookmarks();
+
+  if (options.map) {
+    createMapView(bookmarks);
+    return;
+  }
+
   const colorScale = createColorScale(bookmarks);
   let currentBookmarks = bookmarks;
 
@@ -488,6 +672,7 @@ async function main() {
   const table = createTable(grid);
   const summaryBox = createSummaryBox(grid);
   const alertBox = createAlertBox(grid);
+  const miniMap = createMiniMap(grid);
   const searchQueryBox = createSearchQueryBox(screen);
   const fullScreenSummaryBox = createFullScreenSummaryBox(screen);
 
@@ -513,18 +698,18 @@ async function main() {
     table,
     summaryBox,
     alertBox,
+    miniMap,
     searchQueryBox,
     fullScreenSummaryBox,
     bookmarks,
-    updateDisplay,
-    currentBookmarks,
-    bookmarks
+    updateDisplay
   );
 
   table.focus();
   screen.render();
 }
 
+// Display help information
 function displayHelp() {
   const helpText = `
 Scrapbook CLI
@@ -551,19 +736,29 @@ Press 'h' while in the application to display this help.
   console.log(helpText);
 }
 
+// Set up command-line interface
 const program = new Command();
 program
   .name("scrapbook-cli")
   .description("CLI for managing and viewing scrapbook entries")
-  .version("1.0.0");
+  .version("1.0.0")
+  .option("-m, --map", "Display a map of all bookmarks");
 
-program.command("list").description("List all bookmarks").action(main);
+program
+  .command("list")
+  .description("List all bookmarks")
+  .action((cmd) => main(cmd));
+
+program
+  .command("json <scrap_id>")
+  .description("Display JSON for a specific scrap")
+  .action((scrap_id) => displayScrapJson(scrap_id));
 
 program.option("-h, --help", "Display help information").action((options) => {
   if (options.help) {
     displayHelp();
   } else {
-    main();
+    main(options);
   }
 });
 
