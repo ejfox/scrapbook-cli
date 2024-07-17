@@ -429,9 +429,18 @@ async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay) {
   screen.render();
 }
 
+let summaryInterval;
+
 function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
+  if (summaryInterval) {
+    clearInterval(summaryInterval);
+    summaryInterval = null;
+  }
+
   if (summaryBox.visible) {
     summaryBox.hide();
+    summaryBox.setContent("");
+    summaryBox.screen.render();
   } else {
     summaryBox.setContent("");
     summaryBox.show();
@@ -459,7 +468,7 @@ function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
       }
     };
 
-    const summaryInterval = setInterval(typeOutSummary, 50);
+    summaryInterval = setInterval(typeOutSummary, 25);
   }
 }
 
