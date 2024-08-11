@@ -168,11 +168,23 @@ function createSummaryBox(grid) {
     label: "Summary - press 'z' to zoom",
     content: `Welcome to the scrapbook CLI!
 
-Use the arrow keys to navigate through bookmarks.
-Press 'space' to open a bookmark in the browser.
-Press 's' to search for bookmarks.
-Press 'z' to toggle full-screen summary view.
-Press 'q' to quit the application.`,
+╔══════════════════════╗
+║ ┌─┐┌─┐┬─┐┌─┐┌─┐      ║
+║ └─┐│  ├┬┘├─┤├─┘      ║
+║ └─┘└─┘┴└─┴ ┴┴        ║
+║    C L I  v1         ║
+╠══════════════════════╣
+║ NAVIGATE : ↑↓        ║
+║ OPEN     : [SPACE]   ║
+║ SEARCH   : [S]       ║
+║ SUMMARY  : [Z]       ║
+║ REFRESH  : [R]       ║
+║ RELATIONS: [V]       ║
+║ QUIT     : [Q]       ║
+╠══════════════════════╣
+║SYSTEM STATUS: ACTIVE ║
+╚══════════════════════╝
+`,
 
     padding: 1,
     border: { type: "line" },
@@ -432,6 +444,13 @@ function setupKeyboardShortcuts(
     screen.render();
   });
 
+  // Add the new 'r' key functionality
+  screen.key(["v"], () => {
+    const selectedIndex = table.rows.selected;
+    const selectedScrap = bookmarks[selectedIndex];
+    showRelationshipView(screen, selectedScrap, bookmarks);
+  });
+
   screen.key(["left"], () => {
     const selected = table.rows.selected;
     const bookmark = bookmarks[selected];
@@ -518,6 +537,265 @@ async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay) {
     searchBox.destroy();
   });
 
+  screen.render();
+}
+
+function showRelationshipView(screen, scrap, bookmarks) {
+  const relationshipBox = blessed.box({
+    parent: screen,
+    top: "center",
+    left: "center",
+    width: "90%",
+    height: "90%",
+    border: {
+      type: "line",
+    },
+    style: {
+      border: {
+        fg: "white",
+      },
+    },
+    label: "Relationship View",
+    content: "",
+    scrollable: true,
+    alwaysScroll: true,
+    scrollbar: {
+      ch: " ",
+      inverse: true,
+    },
+  });
+
+  const width = relationshipBox.width - 4;
+  const height = relationshipBox.height - 8; // Leave space for legend
+
+  function createGraphData(relationships) {
+    const nodes = new Map();
+    const links = [];
+
+    relationships.forEach((rel) => {
+      if (!nodes.has(rel.source.name)) {
+        nodes.set(rel.source.name, {
+          id: rel.source.name,
+          label: rel.source.name,
+          group: rel.source.type,
+        });
+      }
+      if (!nodes.has(rel.target.name)) {
+        nodes.set(rel.target.name, {
+          id: rel.target.name,
+          label: rel.target.name,
+          group: rel.target.type,
+        });
+      }
+      links.push({
+        source: rel.source.name,
+        target: rel.target.name,
+        type: rel.type,
+      });
+    });
+
+    return { nodes: Array.from(nodes.values()), links };
+  }
+
+  function initForceSimulation(graphData) {
+    return (
+      d3
+        .forceSimulation(graphData.nodes)
+        .force(
+          "link",
+          d3
+            .forceLink(graphData.links)
+            .id((d) => d.id)
+            .distance(width / 6)
+            .strength(0.5)
+        )
+        .force("charge", d3.forceManyBody().strength(-2))
+        // .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collision", d3.forceCollide().radius(5))
+        .force("x", d3.forceX(width / 2).strength(0.15))
+        .force("y", d3.forceY(height / 2).strength(0.15))
+    );
+  }
+
+  function generateASCIIGraph(nodes, links) {
+    const grid = Array(height)
+      .fill()
+      .map(() => Array(width).fill(" "));
+    const nodePositions = new Map();
+
+    // Update node positions
+    for (const node of nodes) {
+      const x = Math.floor(node.x);
+      const y = Math.floor(node.y);
+      nodePositions.set(node.id, { x, y });
+      if (x >= 0 && x < width && y >= 0 && y < height) {
+        const symbol = getSymbolForGroup(node.group);
+        grid[y][x] = symbol;
+
+        // Add wrapped node label
+        const wrappedLabel = wrapText(node.label.toUpperCase(), 20);
+        wrappedLabel.forEach((line, i) => {
+          if (y + i + 1 < height) {
+            for (let j = 0; j < line.length && x + j + 1 < width; j++) {
+              grid[y + i + 1][x + j + 1] = line[j];
+            }
+          }
+        });
+      }
+    }
+
+    // Draw links
+    for (const link of links) {
+      const sourcePos = nodePositions.get(link.source.id || link.source);
+      const targetPos = nodePositions.get(link.target.id || link.target);
+      if (sourcePos && targetPos) {
+        drawLine(grid, sourcePos.x, sourcePos.y, targetPos.x, targetPos.y);
+      }
+    }
+
+    return grid.map((row) => row.join("")).join("\n");
+  }
+
+  function wrapText(text, maxLength) {
+    const words = text.split(" ");
+    const lines = [];
+    let currentLine = "";
+
+    words.forEach((word) => {
+      if ((currentLine + word).length <= maxLength) {
+        currentLine += (currentLine ? " " : "") + word;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
+    });
+    if (currentLine) lines.push(currentLine);
+
+    return lines;
+  }
+
+  function drawLine(grid, x0, y0, x1, y1) {
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+
+    while (true) {
+      if (x0 >= 0 && x0 < grid[0].length && y0 >= 0 && y0 < grid.length) {
+        if (!"ABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(grid[y0][x0])) {
+          const intensity = Math.abs(err) / (dx + dy);
+          grid[y0][x0] = getLineChar(x0, y0, dx, dy, err, intensity, grid);
+        }
+      }
+
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) {
+        err -= dy;
+        x0 += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y0 += sy;
+      }
+    }
+  }
+
+  const chars = {
+    full: "█",
+    light: "░",
+    medium: "▒",
+    dark: "▓",
+    top: "▀",
+    bottom: "▄",
+    left: "▌",
+    right: "▐",
+    h: "─",
+    v: "│",
+    ul: "╭",
+    ur: "╮",
+    dl: "╰",
+    dr: "╯",
+    udl: "┤",
+    udr: "├",
+    udlr: "┼",
+    lr: "─",
+  };
+
+  function getLineChar(x0, y0, dx, dy, err, intensity, grid) {
+    const up = y0 > 0 && "│╭╮├┤┼".includes(grid[y0 - 1][x0]);
+    const down = y0 < grid.length - 1 && "│╰╯├┤┼".includes(grid[y0 + 1][x0]);
+    const left = x0 > 0 && "─╭╰├┤┼".includes(grid[y0][x0 - 1]);
+    const right =
+      x0 < grid[0].length - 1 && "─╮╯├┤┼".includes(grid[y0][x0 + 1]);
+
+    if (up && down && left && right) return chars.udlr;
+    if (up && down && left) return chars.udl;
+    if (up && down && right) return chars.udr;
+    if (up && left) return chars.dr;
+    if (up && right) return chars.dl;
+    if (down && left) return chars.ur;
+    if (down && right) return chars.ul;
+    if (up || down) return chars.v;
+    return chars.h;
+  }
+
+  function getSymbolForGroup(group) {
+    const symbols = {
+      Person: "☺",
+      Product: "□",
+      Technology: "◇",
+      Event: "▲",
+      MediaContent: "♪",
+      Concept: "○",
+      Platform: "⬢",
+    };
+    return symbols[group] || "●"; // Default to '●' for unknown types
+  }
+
+  if (!scrap.relationships || scrap.relationships.length === 0) {
+    relationshipBox.setContent("No relationships found for this scrap.");
+    screen.append(relationshipBox);
+    relationshipBox.focus();
+    screen.render();
+    return;
+  }
+
+  const graphData = createGraphData(scrap.relationships);
+  const simulation = initForceSimulation(graphData);
+
+  function updateGraph() {
+    const asciiGraph = generateASCIIGraph(graphData.nodes, graphData.links);
+
+    let content = `Relationships for: ${scrap.scrap_id}\n\n`;
+    content += asciiGraph + "\n\n";
+    content += "Legend:\n";
+    Object.entries(getSymbolForGroup).forEach(([group, symbol]) => {
+      content += `${symbol} - ${group}   `;
+    });
+
+    relationshipBox.setContent(content);
+    screen.render();
+  }
+
+  // Run the simulation and update the graph
+  simulation.on("tick", () => {
+    graphData.nodes.forEach((node) => {
+      node.x = Math.max(0, Math.min(width, node.x));
+      node.y = Math.max(0, Math.min(height, node.y));
+    });
+    updateGraph();
+  });
+
+  relationshipBox.key(["escape"], () => {
+    simulation.stop();
+    screen.remove(relationshipBox);
+    screen.render();
+  });
+
+  screen.append(relationshipBox);
+  relationshipBox.focus();
   screen.render();
 }
 
@@ -730,6 +1008,7 @@ Navigation:
   Esc            Exit search or full-screen view
   Q              Quit the application
   R              Refresh bookmarks  
+  V              View relationships for selected scrap
 Press 'h' while in the application to display this help.
   `;
 
