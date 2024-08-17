@@ -33,7 +33,7 @@ const COLOR_PALETTE = [
   "#808080", // Cyberpunk gray
 ];
 
-const VIEW_HEADERS = ["created_at", "scrap_id", "source", "content"];
+const VIEW_HEADERS = ["created_at", "source", "content"];
 const ALL_HEADERS = [
   "id",
   "source",
