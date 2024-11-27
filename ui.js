@@ -216,10 +216,10 @@ export function setupKeyboardShortcuts(
     if (selected >= 0 && selected < bookmarks.length) {
       updateSummary(selected, bookmarks, summaryBox, alertBox, miniMap, screen);
       const bookmark = bookmarks[selected];
-      const href = bookmark.metadata.href;
+      const url = bookmark.url;
       try {
-        execSync(`open ${href}`);
-        alertBox.setContent("Opening in browser: " + href);
+        execSync(`open ${url}`);
+        alertBox.setContent("Opening in browser: " + url);
       } catch (error) {
         alertBox.setContent("Error opening in browser: " + error);
       }
