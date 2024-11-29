@@ -178,7 +178,10 @@ export function setupKeyboardShortcuts(
     stopCurrentAnimation();
     searchQueryBox.content = "";
     searchQueryBox.hide();
-    updateDisplay(bookmarks);
+    reloadBookmarks(updateDisplay).then((newBookmarks) => {
+      bookmarks.length = 0;
+      bookmarks.push(...newBookmarks);
+    });
   });
 
   screen.key(["j", "down"], () => {
@@ -261,7 +264,7 @@ export function setupKeyboardShortcuts(
   });
 
   screen.key(["s", "/"], () => {
-    showSearchBox(screen, alertBox, searchQueryBox, updateDisplay);
+    showSearchBox(screen, alertBox, searchQueryBox, updateDisplay, bookmarks);
   });
 
   screen.key(["z"], () => {
@@ -455,7 +458,13 @@ Status: Active
 `;
 }
 
-async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay) {
+async function showSearchBox(
+  screen,
+  alertBox,
+  searchQueryBox,
+  updateDisplay,
+  bookmarks
+) {
   const searchBox = blessed.textbox({
     parent: screen,
     top: "center",
@@ -478,9 +487,12 @@ async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay) {
     if (!text) return;
 
     try {
-      const data = await searchBookmarks(text);
-      updateDisplay(data);
-      alertBox.setContent(`Found ${data.length} results`);
+      const searchResults = await searchBookmarks(text);
+      bookmarks.length = 0;
+      bookmarks.push(...searchResults);
+
+      updateDisplay(bookmarks);
+      alertBox.setContent(`Found ${searchResults.length} results`);
     } catch (error) {
       alertBox.setContent(error.message);
     }

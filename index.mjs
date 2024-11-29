@@ -16,25 +16,69 @@ async function showLoadingScreen() {
     title: "Loading Scrapbook CLI",
   });
 
+  // Create a more visually appealing loading box
   const loadingBox = blessed.box({
     parent: screen,
     top: "center",
     left: "center",
-    width: "50%",
-    height: "50%",
-    content: "INITIALIZING SCRAPBOOK\nPLEASE WAIT",
-    border: "line",
+    width: "60%",
+    height: "20%",
+    align: "center",
+    valign: "middle",
+    content: "INITIALIZING SCRAPBOOK",
+    border: {
+      type: "line",
+    },
     style: {
-      border: { fg: "green" },
+      border: {
+        fg: "green",
+      },
+      bold: true,
     },
   });
 
-  let dots = "";
+  // Create a progress bar
+  const progressBar = blessed.progressbar({
+    parent: loadingBox,
+    top: 2,
+    left: "center",
+    width: "80%",
+    height: 1,
+    filled: 0,
+    style: {
+      bar: {
+        fg: "green",
+      },
+      bg: "black",
+    },
+  });
+
+  // Create loading text that changes
+  const loadingStates = [
+    "Loading bookmarks",
+    "Processing data",
+    "Initializing interface",
+    "Almost ready",
+  ];
+  let currentState = 0;
+  let progress = 0;
+
   const loadingInterval = setInterval(() => {
-    dots = dots.length >= 3 ? "" : dots + ".";
-    loadingBox.setContent(`INITIALIZING SCRAPBOOK\nPLEASE WAIT${dots}`);
+    // Update progress
+    progress = Math.min(100, progress + 2);
+    progressBar.setProgress(progress);
+
+    // Update loading text
+    if (progress % 25 === 0) {
+      currentState = (currentState + 1) % loadingStates.length;
+      loadingBox.setContent(
+        `${loadingStates[currentState]}\n\n` +
+          `${".".repeat((progress % 4) + 1)}`
+      );
+    }
+
     screen.render();
-  }, 500);
+  }, 50);
 
   screen.render();
   return { screen, loadingInterval };
