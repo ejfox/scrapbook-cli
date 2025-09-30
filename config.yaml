@@ -1,0 +1,220 @@
+# Scrapbook CLI Configuration
+# Default configuration - can be overridden by ~/.scrapbook/config.yaml
+
+# UI Theme and Colors
+theme:
+  colors:
+    palette:
+      - "#00FF00"  # Green
+      - "#FF0080"  # Pink
+      - "#0080FF"  # Blue
+      - "#FF8000"  # Orange
+      - "#8000FF"  # Purple
+      - "#00FF80"  # Cyan
+      - "#FF4000"  # Red
+      - "#80FF00"  # Lime
+      - "#4000FF"  # Indigo
+      - "#FF0040"  # Magenta
+
+    borders:
+      default: white
+      focus: yellow
+      selected: green
+      alert: red
+      info: cyan
+
+    text:
+      default: white
+      highlight: green
+      error: red
+      dim: gray
+
+# Scrap Type Symbols
+symbols:
+  types:
+    article: "📄"
+    bookmark: "🔖"
+    code: "💻"
+    image: "🖼️"
+    video: "🎥"
+    audio: "🎵"
+    document: "📋"
+    default: "📝"
+
+  ui:
+    bullet: "•"
+    arrow: "❯"
+    star: "⊛"
+    command: "⌘"
+    dot: "◉"
+    diamond: "◆"
+    circle: "○"
+    filled_circle: "●"
+    summary_bullet: "⟡"
+
+# Table Display Configuration
+display:
+  # Headers shown in main table view
+  view_headers:
+    - created_at
+    - source
+    - content
+    - tags
+    - summary
+
+  # All available headers for detail view
+  all_headers:
+    - scrap_id
+    - created_at
+    - updated_at
+    - source
+    - content
+    - url
+    - title
+    - tags
+    - summary
+    - relationships
+    - location
+    - financial_analysis
+    - metadata
+
+  # Headers to always hide
+  hidden_headers:
+    - embedding
+    - embedding_nomic
+    - image_embedding
+    - processing_instance_id
+    - processing_started_at
+    - id
+
+  # Column width percentages for table
+  column_widths:
+    date: 15      # % for date column
+    source: 15    # % for source column
+    content: 70   # % for content column (remainder)
+
+  # Minimum column widths in characters
+  min_column_widths:
+    date: 10
+    source: 8
+    content: 20
+
+# Animation Settings
+animations:
+  summary:
+    enabled: true
+    duration: 10      # milliseconds between updates
+    chunk_size: 8     # characters per update
+
+  force_layout:
+    enabled: true
+    tick_interval: 100  # milliseconds
+    auto_start: true
+    auto_start_delay: 1000  # milliseconds
+
+# Force Layout Physics
+physics:
+  center_force: 0.001
+  repulsion_force: 5
+  link_distance: 10
+  link_force: 0.1
+  damping: 0.9
+  bounds_padding: 10
+
+# Keyboard Shortcuts
+shortcuts:
+  quit: ["q", "C-c"]
+  help: ["h"]
+  help_overlay: ["?"]
+  escape: ["escape"]
+
+  # Navigation
+  up: ["k", "up"]
+  down: ["j", "down"]
+  page_up: ["pageup"]
+  page_down: ["pagedown"]
+
+  # Actions
+  open_detail: ["z", "enter"]
+  open_browser: ["space"]
+  copy_public_url: ["right"]
+  copy_scrapbook_url: ["left"]
+  search: ["s", "/"]
+  refresh: ["r"]
+
+  # Views
+  relationships: ["v"]
+  force_layout: ["f"]
+
+# Search Configuration
+search:
+  fields:
+    - content
+    - tags
+    - summary
+    - title
+  type: websearch
+  config: english
+
+# UI Layout
+layout:
+  grid:
+    rows: 12
+    cols: 12
+
+  panels:
+    table:
+      row: 0
+      col: 0
+      height: 12
+      width: 8
+
+    summary:
+      row: 0
+      col: 8
+      height: 6
+      width: 4
+
+    alert:
+      row: 10
+      col: 8
+      height: 2
+      width: 4
+
+    map:
+      row: 6
+      col: 8
+      height: 4
+      width: 4
+
+# External Commands
+commands:
+  open:
+    darwin: open
+    win32: cmd.exe /c start ""
+    linux: xdg-open
+
+  clipboard:
+    darwin: pbcopy
+    win32: clip
+    linux: xclip -selection clipboard
+    linux_fallback: xsel --clipboard --input
+
+# Database Configuration
+database:
+  table: scraps
+  order_by: created_at
+  order_direction: desc
+
+# URL Templates
+urls:
+  public_base: "https://ejfox.com/scrapbook/"
+
+# Miscellaneous
+misc:
+  lines_per_page: 20
+  summary_preview_length: 100
+  content_preview_length: 80
+  relationship_preview_count: 5
+  location_preview_length: 50
+  alert_timeout: 5000  # milliseconds

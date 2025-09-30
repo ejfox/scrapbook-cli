@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import { format } from "date-fns";
 import * as d3 from "d3";
-import { COLOR_PALETTE } from "./constants.js";
+import { COLOR_PALETTE } from "./config.js";
 
 dotenv.config();
 

@@ -1,7 +1,7 @@
 import blessed from "blessed";
 import contrib from "blessed-contrib";
 import { format } from "date-fns";
-import { SCRAP_TYPE_SYMBOLS, VIEW_HEADERS, ALL_HEADERS } from "./constants.js";
+import config, { SCRAP_TYPE_SYMBOLS, VIEW_HEADERS, ALL_HEADERS } from "./config.js";
 import {
   formatTableData,
   reloadBookmarks,
@@ -372,18 +372,22 @@ function createTable(grid) {
   const terminalWidth = process.stdout.columns || 80;
   const totalWidth = Math.max(50, terminalWidth - 4); // Account for borders, minimum 50
 
+  // Get column widths from config
+  const columnConfig = config.display?.column_widths || { date: 15, source: 15, content: 70 };
+  const minWidths = config.display?.min_column_widths || { date: 10, source: 8, content: 20 };
+
   // Calculate proportional widths
-  const dateWidth = Math.floor(totalWidth * 0.15); // 15% for date
-  const sourceWidth = Math.floor(totalWidth * 0.15); // 15% for source
+  const dateWidth = Math.floor(totalWidth * (columnConfig.date / 100));
+  const sourceWidth = Math.floor(totalWidth * (columnConfig.source / 100));
   const contentWidth = totalWidth - dateWidth - sourceWidth; // Rest for content
 
   return grid.set(0, 0, 12, 8, contrib.table, {
     keys: true,
     label: "Bookmarks",
     columnWidth: [
-      Math.max(10, dateWidth), // Min 10 chars for date
-      Math.max(8, sourceWidth), // Min 8 chars for source
-      Math.max(20, contentWidth), // Min 20 chars for content
+      Math.max(minWidths.date, dateWidth),
+      Math.max(minWidths.source, sourceWidth),
+      Math.max(minWidths.content, contentWidth),
     ],
     vi: true,
     style: {

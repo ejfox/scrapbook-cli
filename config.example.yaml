@@ -1,0 +1,41 @@
+# Example User Configuration for Scrapbook CLI
+# Copy this file to ~/.scrapbook/config.yaml to customize your settings
+
+# Example: Customize color palette
+theme:
+  colors:
+    palette:
+      - "#FF1493"  # Deep Pink
+      - "#00CED1"  # Dark Turquoise
+      - "#FFD700"  # Gold
+      - "#9370DB"  # Medium Purple
+      - "#FF6347"  # Tomato
+
+# Example: Customize symbols
+symbols:
+  types:
+    article: "📰"
+    bookmark: "⭐"
+    code: "⚡"
+
+# Example: Change column widths
+display:
+  column_widths:
+    date: 20      # Make date column wider
+    source: 10    # Make source column narrower
+    content: 70   # Content takes the rest
+
+# Example: Disable animations
+animations:
+  summary:
+    enabled: false
+
+# Example: Customize keyboard shortcuts
+shortcuts:
+  open_detail: ["o", "enter"]  # Use 'o' instead of 'z'
+  search: ["f", "/"]          # Add 'f' for find
+
+# Example: Change force layout physics
+physics:
+  repulsion_force: 10  # Stronger repulsion between nodes
+  damping: 0.95       # Less damping for smoother animation
