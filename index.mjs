@@ -6,9 +6,9 @@ import blessed from "blessed";
 import {
   createUI,
   setupKeyboardShortcuts,
-  createMapView,
   displayHelp,
 } from "./ui.js";
+import { createMapView } from "./ui/map-view.js";
 
 async function showLoadingScreen() {
   const screen = blessed.screen({

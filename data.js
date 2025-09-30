@@ -18,7 +18,8 @@ export async function loadBookmarks() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error loading bookmarks:", error);
+    // Silently fail and return empty array
+    // TODO: Proper error handling/reporting
     return [];
   }
 
@@ -192,11 +193,13 @@ export async function displayScrapJson(scrap_id) {
       delete data.processing_instance_id;
       delete data.processing_started_at;
 
+      // This console.log is intentional - it's the output for the json command
       console.log(JSON.stringify(data, null, 2));
     } else {
       console.log(`No scrap found with ID: ${scrap_id}`);
     }
   } catch (error) {
-    console.error("Error fetching scrap:", error.message);
+    // Output error message for CLI user
+    console.error(`Error fetching scrap: ${error.message}`);
   }
 }
