@@ -125,9 +125,16 @@ const configSchema = Joi.object({
 
   // Database configuration
   database: Joi.object({
+    supabase_url: Joi.string().uri().allow(null),
+    supabase_key: Joi.string().allow(null),
     table: Joi.string(),
     order_by: Joi.string(),
-    order_direction: Joi.string().valid('asc', 'desc')
+    order_direction: Joi.string().valid('asc', 'desc'),
+    default_limit: Joi.number().min(1).max(10000),
+    default_select: Joi.string(),
+    search_columns: Joi.array().items(Joi.string()),
+    search_type: Joi.string().valid('websearch', 'plain', 'phrase'),
+    search_config: Joi.string()
   }),
 
   // URL templates

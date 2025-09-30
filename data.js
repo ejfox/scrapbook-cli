@@ -2,20 +2,32 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import { format } from "date-fns";
 import * as d3 from "d3";
-import { COLOR_PALETTE } from "./config.js";
+import config, { COLOR_PALETTE } from "./config.js";
 
 dotenv.config();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
+// Get Supabase config with environment variable fallback for security
+const supabaseUrl = config.database?.supabase_url || process.env.SUPABASE_URL;
+const supabaseKey = config.database?.supabase_key || process.env.SUPABASE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Missing Supabase configuration. Set SUPABASE_URL and SUPABASE_KEY in environment or config.");
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function loadBookmarks() {
+  const tableName = config.database?.table || "scraps";
+  const orderBy = config.database?.order_by || "created_at";
+  const orderDirection = config.database?.order_direction || "desc";
+  const selectFields = config.database?.default_select || "*";
+  const limit = config.database?.default_limit || 1000;
+
   const { data, error } = await supabase
-    .from("scraps")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .from(tableName)
+    .select(selectFields)
+    .order(orderBy, { ascending: orderDirection === "asc" })
+    .limit(limit);
 
   if (error) {
     // Silently fail and return empty array
@@ -68,19 +80,26 @@ export async function reloadBookmarks(updateDisplay) {
 }
 
 export async function searchBookmarks(query) {
+  const tableName = config.database?.table || "scraps";
+  const searchColumns = config.database?.search_columns || ["content", "tags", "summary", "title"];
+  const searchType = config.database?.search_type || "websearch";
+  const searchConfig = config.database?.search_config || "english";
+  const orderBy = config.database?.order_by || "created_at";
+  const orderDirection = config.database?.order_direction || "desc";
+
   const { data, error } = await supabase
-    .from("scraps")
+    .from(tableName)
     .select("*")
     .textSearch(
-      ["content", "tags", "summary", "title"],
+      searchColumns,
       query,
       {
-        type: "websearch",
-        config: "english",
+        type: searchType,
+        config: searchConfig,
       },
       { columns: "*" }
     )
-    .order("created_at", { ascending: false });
+    .order(orderBy, { ascending: orderDirection === "asc" });
 
   if (error) {
     throw new Error(`Error searching bookmarks: ${error.message}`);
@@ -176,9 +195,11 @@ export function formatSummary(summary) {
 }
 
 export async function displayScrapJson(scrap_id) {
+  const tableName = config.database?.table || "scraps";
+
   try {
     const { data, error } = await supabase
-      .from("scraps")
+      .from(tableName)
       .select("*")
       .eq("scrap_id", scrap_id)
       .single();

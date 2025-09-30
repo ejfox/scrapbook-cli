@@ -171,6 +171,64 @@ symbols:
     dot: "◉"
 ```
 
+## 🗄️ Database & Supabase Configuration
+
+### Connection Settings
+```yaml
+database:
+  # Credentials from environment variables (recommended)
+  # SUPABASE_URL and SUPABASE_KEY
+
+  table: scraps               # Table to query
+  order_by: created_at        # Sort field
+  order_direction: desc       # asc or desc
+  default_limit: 1000         # Max records to fetch
+  default_select: "*"         # Fields to select
+```
+
+### Search Configuration
+```yaml
+database:
+  search_columns:
+    - content
+    - tags
+    - summary
+    - title
+    - author                  # Add custom columns
+
+  search_type: websearch      # Options: websearch, plain, phrase
+  search_config: english      # Language config for search
+```
+
+### Multiple Supabase Projects
+```yaml
+# Use NODE_ENV to switch between databases
+
+# config.development.yaml
+database:
+  table: scraps_dev
+  default_limit: 100
+
+# config.staging.yaml
+database:
+  table: scraps_staging
+  default_limit: 500
+
+# config.production.yaml
+database:
+  table: scraps
+  default_limit: 1000
+```
+
+### Environment Variable Overrides
+```bash
+# Override any database setting via env vars
+export SCRAPBOOK_DATABASE_TABLE=my_custom_table
+export SCRAPBOOK_DATABASE_ORDER_BY=updated_at
+export SCRAPBOOK_DATABASE_DEFAULT_LIMIT=500
+export SCRAPBOOK_DATABASE_SEARCH_TYPE=phrase
+```
+
 ## 📊 Performance Tuning
 
 ### Disable animations for speed
@@ -180,6 +238,13 @@ animations:
     enabled: false
   force_layout:
     auto_start: false
+```
+
+### Optimize Database Queries
+```yaml
+database:
+  default_limit: 200          # Fetch fewer records
+  default_select: "id,title,content,created_at"  # Only needed fields
 ```
 
 ### Adjust physics for smoother force layout
@@ -201,6 +266,33 @@ display:
 
 ## 🔐 Security
 
+### Supabase Credentials
+**NEVER** store credentials in config files. Always use environment variables:
+
+```bash
+# .env file (git ignored)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key-here
+```
+
+The config system checks in this order:
+1. Config file values (if explicitly set)
+2. Environment variables (recommended)
+
+```yaml
+# config.yaml - DON'T do this
+database:
+  supabase_url: "https://..."  # ❌ BAD - exposed in config
+  supabase_key: "sk-..."        # ❌ BAD - exposed in config
+
+# config.yaml - DO this instead
+database:
+  # Credentials come from SUPABASE_URL and SUPABASE_KEY env vars
+  table: scraps
+  order_by: created_at
+```
+
+### General Security
 - User configs are stored in `~/.scrapbook/config.yaml`
 - Sensitive data should use environment variables, not config files
 - Config files are validated to prevent injection attacks

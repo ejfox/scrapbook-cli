@@ -39,3 +39,26 @@ shortcuts:
 physics:
   repulsion_force: 10  # Stronger repulsion between nodes
   damping: 0.95       # Less damping for smoother animation
+
+# Example: Configure Supabase and database
+# WARNING: For security, use environment variables for credentials
+database:
+  # supabase_url: "https://your-project.supabase.co"  # Better to use SUPABASE_URL env var
+  # supabase_key: "your-anon-key"                      # Better to use SUPABASE_KEY env var
+
+  table: my_bookmarks        # Different table name
+  order_by: updated_at        # Order by different field
+  order_direction: asc        # Ascending order
+  default_limit: 500          # Limit results
+
+  # Custom search configuration
+  search_columns:
+    - title
+    - content
+    - author
+  search_type: phrase         # Use phrase search instead of websearch
+
+# Example: Multiple Supabase projects
+# Use environment-specific configs:
+# config.development.yaml - Dev Supabase project
+# config.production.yaml - Prod Supabase project

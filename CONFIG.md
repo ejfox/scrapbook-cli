@@ -28,6 +28,12 @@ Each subsequent config file overrides values from the previous ones using deep m
 
 ## Configuration Options
 
+### Database & Supabase
+- Supabase URL and API key (use env vars for security)
+- Table name and schema
+- Query defaults (limit, ordering)
+- Search configuration
+
 ### Theme & Colors
 - Color palette for UI elements
 - Border and text colors
@@ -87,6 +93,38 @@ display:
     date: 25
     source: 15
     content: 60
+```
+
+### Custom Database Configuration
+```yaml
+# Use environment variables for credentials (recommended)
+# Set SUPABASE_URL and SUPABASE_KEY in .env
+
+database:
+  table: my_scraps           # Custom table name
+  order_by: updated_at        # Sort by different field
+  order_direction: desc       # desc or asc
+  default_limit: 500          # Limit query results
+
+  # Search configuration
+  search_columns:
+    - title
+    - content
+    - tags
+  search_type: websearch      # websearch, plain, or phrase
+```
+
+### Multiple Environments
+```yaml
+# config.development.yaml - Development database
+database:
+  table: scraps_dev
+  default_limit: 100
+
+# config.production.yaml - Production database
+database:
+  table: scraps
+  default_limit: 1000
 ```
 
 ## Testing Your Config

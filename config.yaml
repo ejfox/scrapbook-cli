@@ -202,9 +202,28 @@ commands:
 
 # Database Configuration
 database:
+  # Supabase connection (can override with env vars for security)
+  # Set SUPABASE_URL and SUPABASE_KEY in .env or environment
+  supabase_url: null  # Will use SUPABASE_URL env var if not set
+  supabase_key: null  # Will use SUPABASE_KEY env var if not set
+
+  # Table configuration
   table: scraps
   order_by: created_at
   order_direction: desc
+
+  # Query defaults
+  default_limit: 1000
+  default_select: "*"
+
+  # Search configuration
+  search_columns:
+    - content
+    - tags
+    - summary
+    - title
+  search_type: websearch
+  search_config: english
 
 # URL Templates
 urls:

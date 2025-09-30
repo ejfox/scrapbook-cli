@@ -1,0 +1,43 @@
+# Example Production Configuration
+# Rename to config.production.yaml to use
+# Loaded when NODE_ENV=production
+
+# Production theme - clean and professional
+theme_preset: minimalist
+
+# Production database
+database:
+  # Production Supabase (credentials from env vars only)
+  table: scraps
+  order_by: created_at
+  order_direction: desc
+  default_limit: 1000
+
+  # Optimized search for production
+  search_type: websearch
+  search_config: english
+
+# Disable animations for performance
+animations:
+  summary:
+    enabled: false
+  force_layout:
+    enabled: true
+    auto_start: false  # Manual start only
+
+# Production URLs
+urls:
+  public_base: "https://ejfox.com/scrapbook/"
+
+# Production optimizations
+misc:
+  alert_timeout: 3000  # Shorter alerts
+  summary_preview_length: 80  # Shorter previews
+  content_preview_length: 60
+
+# Minimal column widths for production
+display:
+  column_widths:
+    date: 12
+    source: 10
+    content: 78

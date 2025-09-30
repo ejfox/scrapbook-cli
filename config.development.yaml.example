@@ -1,0 +1,35 @@
+# Example Development Configuration
+# Rename to config.development.yaml to use
+# Loaded when NODE_ENV=development
+
+# Development theme - high contrast for debugging
+theme_preset: high_contrast
+
+# Development database
+database:
+  # Dev Supabase project (still use env vars for credentials)
+  table: scraps_dev
+  order_by: updated_at
+  order_direction: desc
+  default_limit: 100  # Smaller limit for dev
+
+  # More verbose search in dev
+  search_type: plain
+  search_config: simple
+
+# Enable all animations in dev for testing
+animations:
+  summary:
+    enabled: true
+    duration: 5
+  force_layout:
+    enabled: true
+    auto_start: true
+
+# Development URLs
+urls:
+  public_base: "http://localhost:3000/scrapbook/"
+
+# Verbose output in dev
+misc:
+  alert_timeout: 10000  # Longer alerts in dev
