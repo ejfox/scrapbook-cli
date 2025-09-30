@@ -595,7 +595,21 @@ function showRelationshipView(screen, scrap, bookmarks) {
 
   let content = `Relationships for: ${scrap.scrap_id}\n\n`;
   scrap.relationships.forEach((rel) => {
-    content += `${rel.source.name} [${rel.source.type}] --${rel.type}--> ${rel.target.name} [${rel.target.type}]\n`;
+    // Skip empty or invalid relationships
+    if (!rel || typeof rel !== 'object') return;
+
+    // Handle both old and new schema formats
+    const sourceName = rel.source?.name || rel.source || 'Unknown';
+    const sourceType = rel.source?.type || '';
+    const targetName = rel.target?.name || rel.target || 'Unknown';
+    const targetType = rel.target?.type || '';
+    const relType = rel.type || rel.relationship || 'RELATED_TO';
+
+    if (sourceType && targetType) {
+      content += `${sourceName} [${sourceType}] --${relType}--> ${targetName} [${targetType}]\n`;
+    } else {
+      content += `${sourceName} --${relType}--> ${targetName}\n`;
+    }
   });
   content += "\n\nPress ESC to close";
 
