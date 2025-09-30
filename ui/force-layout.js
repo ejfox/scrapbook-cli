@@ -2,24 +2,37 @@ import blessed from "blessed";
 import contrib from "blessed-contrib";
 import { stripMarkdown, formatTags } from "../data.js";
 
-export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = null) {
+export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = null, onClose = null) {
   const title = focusBookmark
     ? `Force Layout - ${focusBookmark.title?.substring(0, 40) || 'Current Bookmark'} Relationships`
     : "Scrapbook Force Layout - Relationship Graph";
 
-  const screen = blessed.screen({
-    smartCSR: true,
-    title: title,
+  // Create a fullscreen container on the parent screen instead of a new screen
+  const container = blessed.box({
+    parent: parentScreen,
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    label: title,
+    border: 'line',
+    style: {
+      border: { fg: 'cyan' },
+      bg: 'black'
+    }
   });
 
   // Ensure valid terminal dimensions
-  const terminalWidth = process.stdout.columns || 80;
-  const terminalHeight = process.stdout.rows || 24;
+  const terminalWidth = parentScreen.width || process.stdout.columns || 80;
+  const terminalHeight = parentScreen.height || process.stdout.rows || 24;
 
-  const grid = new contrib.grid({ rows: 12, cols: 12, screen: screen });
-
-  // Create main graph area
-  const graphBox = grid.set(0, 0, 10, 12, blessed.box, {
+  // Create main graph area as a child of container
+  const graphBox = blessed.box({
+    parent: container,
+    top: 1,
+    left: 1,
+    width: '98%',
+    height: '80%',
     label: "Relationship Force Graph",
     border: "line",
     style: {
@@ -29,9 +42,14 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
 
   // Info panel
   const infoLabel = focusBookmark ? "Bookmark Relationships" : "Node Info";
-  const infoBox = grid.set(10, 0, 2, 12, blessed.box, {
+  const infoBox = blessed.box({
+    parent: container,
+    bottom: 0,
+    left: 1,
+    width: '98%',
+    height: '18%',
     label: infoLabel,
-    content: "Press F to start force simulation\nArrow keys to navigate\nQ to quit",
+    content: "Press F to start force simulation\nArrow keys to navigate\nQ or ESC to exit",
     border: "line",
     scrollable: true,
     keys: true,
@@ -353,7 +371,7 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     animationInterval = setInterval(() => {
       updateForces();
       renderGraph();
-      screen.render();
+      parentScreen.render();
     }, 100);
 
     infoBox.setContent(`Force simulation running...\n\nNodes: ${nodeArray.length}\nLinks: ${links.length}\n\n${infoBox.getContent()}`);
@@ -368,41 +386,42 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
   }
 
   // Keyboard controls
-  screen.key(["q", "escape"], () => {
+  container.key(["q", "escape"], () => {
     stopAnimation();
-    screen.destroy();
+    parentScreen.remove(container);
+    if (onClose) onClose();
     parentScreen.render();
   });
 
-  screen.key(["f"], () => {
+  container.key(["f"], () => {
     if (animationRunning) {
       stopAnimation();
       infoBox.setContent(`Animation stopped\n\n${infoBox.getContent()}`);
     } else {
       startAnimation();
     }
-    screen.render();
+    parentScreen.render();
   });
 
-  screen.key(["up"], () => {
+  container.key(["up"], () => {
     if (nodeArray.length > 0) {
       selectedNodeIndex = (selectedNodeIndex - 1 + nodeArray.length) % nodeArray.length;
       showNodeInfo(nodeArray[selectedNodeIndex]);
       renderGraph();
-      screen.render();
+      parentScreen.render();
     }
   });
 
-  screen.key(["down"], () => {
+  container.key(["down"], () => {
     if (nodeArray.length > 0) {
       selectedNodeIndex = (selectedNodeIndex + 1) % nodeArray.length;
       showNodeInfo(nodeArray[selectedNodeIndex]);
       renderGraph();
-      screen.render();
+      parentScreen.render();
     }
   });
 
-  screen.key(["space"], () => {
+  container.key(["space"], () => {
     // Randomize positions for new layout
     nodeArray.forEach(node => {
       node.x = Math.random() * (graphBox.width - 12) + 5;
@@ -411,10 +430,12 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
       node.vy = 0;
     });
     renderGraph();
-    screen.render();
+    parentScreen.render();
   });
 
-  screen.render();
+  // Focus the container and render
+  container.focus();
+  parentScreen.render();
 
   // Auto-start if there are relationships
   if (links.length > 0) {

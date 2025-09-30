@@ -210,7 +210,10 @@ export function setupKeyboardShortcuts(
     const currentIndex = table.rows.selected || 0;
     const currentBookmark = bookmarks[currentIndex];
     if (currentBookmark) {
-      createForceLayoutView([currentBookmark], screen, currentBookmark);
+      createForceLayoutView([currentBookmark], screen, currentBookmark, () => {
+        // Restore focus to table when force layout closes
+        table.focus();
+      });
     } else {
       alertBox.setContent("No bookmark selected for force layout view");
       screen.render();
