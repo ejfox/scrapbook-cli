@@ -314,7 +314,7 @@ export function setupKeyboardShortcuts(
     showSearchBox(screen, alertBox, searchQueryBox, updateDisplay, bookmarks);
   });
 
-  screen.key(["z"], () => {
+  screen.key(["z", "enter"], () => {
     toggleFullScreenSummary(
       fullScreenSummaryBox,
       bookmarks,
@@ -400,13 +400,13 @@ function createTable(grid) {
 
 function createSummaryBox(grid) {
   return grid.set(0, 8, 6, 4, blessed.box, {
-    label: "Summary (z to zoom)",
+    label: "Summary (enter/z to zoom)",
     content:
       "Welcome to scrapbook CLI\n\n" +
       "NAVIGATE : ↑↓\n" +
       "OPEN     : SPACE\n" +
       "SEARCH   : s\n" +
-      "ZOOM     : z\n" +
+      "ZOOM     : ENTER or z\n" +
       "REFRESH  : r\n" +
       "QUIT     : q",
     padding: 1,
@@ -491,10 +491,10 @@ NAVIGATION
   PgUp/PgDn  Jump 24 entries
 
 ACTIONS
+  ENTER/Z    Expand summary
   SPACE      Open in browser
   →          Copy public URL
   ←          Copy scrapbook URL
-  Z          Expand summary
   S/         Search mode
   V          View relationships
   F          Force layout of current bookmark
