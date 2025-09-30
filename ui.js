@@ -3,7 +3,17 @@ import contrib from "blessed-contrib";
 import { execSync } from "child_process";
 import { format } from "date-fns";
 import { SCRAP_TYPE_SYMBOLS, VIEW_HEADERS, ALL_HEADERS } from "./constants.js";
-import { formatTableData, reloadBookmarks, searchBookmarks } from "./data.js";
+import {
+  formatTableData,
+  reloadBookmarks,
+  searchBookmarks,
+  formatRelationships,
+  formatLocation,
+  formatFinancialAnalysis,
+  formatTags,
+  formatSummary,
+  stripMarkdown
+} from "./data.js";
 import chalk from "chalk";
 
 let currentSummaryInterval;
@@ -35,12 +45,40 @@ export function viewSummary(
     return;
   }
 
-  const summary = ALL_HEADERS.map((header) => {
+  // Filter out embedding fields and other technical fields from display
+  const displayHeaders = ALL_HEADERS.filter(header =>
+    !header.includes('embedding') &&
+    header !== 'id' &&
+    header !== 'processing_instance_id' &&
+    header !== 'processing_started_at'
+  );
+
+  const summary = displayHeaders.map((header) => {
     const value = bookmark[header];
-    return `${header}: ${
-      typeof value === "string" ? value : JSON.stringify(value, null, 2)
-    }`;
-  }).join("\n\n");
+    let formattedValue;
+
+    if (!value) {
+      formattedValue = "";
+    } else if (header === "relationships") {
+      formattedValue = formatRelationships(value);
+    } else if (header === "location") {
+      formattedValue = formatLocation(value);
+    } else if (header === "financial_analysis") {
+      formattedValue = formatFinancialAnalysis(value);
+    } else if (header === "tags") {
+      formattedValue = formatTags(value);
+    } else if (header === "summary") {
+      formattedValue = value; // Keep full summary in detail view
+    } else if (header === "created_at" || header === "updated_at") {
+      formattedValue = format(new Date(value), "yyyy-MM-dd HH:mm");
+    } else if (typeof value === "string") {
+      formattedValue = value;
+    } else {
+      formattedValue = JSON.stringify(value, null, 2);
+    }
+
+    return formattedValue ? `${header}: ${formattedValue}` : null;
+  }).filter(Boolean).join("\n\n");
 
   let charIndex = 0;
   const animDuration = 10;
@@ -168,6 +206,25 @@ export function setupKeyboardShortcuts(
   screen.key(["h"], () => {
     summaryBox.setContent(displayHelp());
     screen.render();
+  });
+
+  screen.key(["?"], () => {
+    // Show help in full-screen overlay
+    fullScreenSummaryBox.setContent(displayHelp());
+    fullScreenSummaryBox.show();
+    screen.render();
+  });
+
+  screen.key(["f"], () => {
+    // Show force layout view of relationships for current bookmark
+    const currentIndex = table.rows.selected || 0;
+    const currentBookmark = bookmarks[currentIndex];
+    if (currentBookmark) {
+      createForceLayoutView([currentBookmark], screen, currentBookmark);
+    } else {
+      alertBox.setContent("No bookmark selected for force layout view");
+      screen.render();
+    }
   });
 
   screen.key(["escape"], () => {
@@ -318,7 +375,9 @@ export function setupKeyboardShortcuts(
 }
 
 function createTable(grid) {
-  const totalWidth = process.stdout.columns - 4; // Account for borders
+  // Ensure we have a valid terminal width, default to 80 if not available
+  const terminalWidth = process.stdout.columns || 80;
+  const totalWidth = Math.max(50, terminalWidth - 4); // Account for borders, minimum 50
 
   // Calculate proportional widths
   const dateWidth = Math.floor(totalWidth * 0.15); // 15% for date
@@ -442,17 +501,25 @@ NAVIGATION
   PgUp/PgDn  Jump 24 entries
 
 ACTIONS
-  SPACE    Open in browser
-  →        Copy public URL
-  ←        Copy scrapbook URL
-  Z        Expand summary
-  S/       Search mode
-  V        View relationships
-  R        Refresh data
+  SPACE      Open in browser
+  →          Copy public URL
+  ←          Copy scrapbook URL
+  Z          Expand summary
+  S/         Search mode
+  V          View relationships
+  F          Force layout of current bookmark
+  R          Refresh data
+
+VIEWS
+  --map      Map view (startup option)
+
+HELP
+  H          Help in sidebar
+  ?          Full help overlay
 
 SYSTEM
-  ESC      Exit current mode
-  Q        Quit
+  ESC        Exit current mode
+  Q          Quit
 
 Status: Active
 `;
@@ -569,7 +636,8 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
 
   let summaryContent = "";
   if (bookmark.summary) {
-    summaryContent = bookmark.summary
+    const cleanSummary = stripMarkdown(bookmark.summary);
+    summaryContent = cleanSummary
       .split("\n")
       .map((line) => `  ⟡ ${line}`) // Unicode bullet for summary lines
       .join("\n");
@@ -578,8 +646,13 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
   const content = Object.entries(bookmark)
     .filter(
       ([key, value]) =>
-        value !== null && value !== undefined && key !== "summary"
-    ) // Skip summary as we handle it separately
+        value !== null && value !== undefined &&
+        key !== "summary" && // Skip summary as we handle it separately
+        !key.includes('embedding') && // Hide all embedding fields
+        key !== 'id' &&
+        key !== 'processing_instance_id' &&
+        key !== 'processing_started_at'
+    )
     .map(([key, value]) => {
       let displayValue = "";
 
@@ -624,6 +697,9 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
             .join("\n");
       } else if (key === "url" || key === "public_url") {
         displayValue = chalk.green(value.toString());
+      } else if (key === "content" || key === "title") {
+        // Strip markdown from content and title fields
+        displayValue = stripMarkdown(value.toString());
       } else {
         displayValue = value.toString();
       }
@@ -680,12 +756,20 @@ export function createMapView(bookmarks) {
     title: "ejfox.com/scrapbook Map View",
   });
 
-  const grid = new contrib.grid({ rows: 12, cols: 16, screen: screen });
-  const map = grid.set(0, 0, 12, 12, contrib.map, {
+  // Ensure we have valid terminal dimensions
+  const terminalWidth = process.stdout.columns || 80;
+  const terminalHeight = process.stdout.rows || 24;
+  const cols = Math.min(16, Math.max(8, Math.floor(terminalWidth / 5)));
+
+  const grid = new contrib.grid({ rows: 12, cols: cols, screen: screen });
+  const mapCols = Math.max(8, cols - 4);
+  const infoCols = Math.min(4, cols - mapCols);
+
+  const map = grid.set(0, 0, 12, mapCols, contrib.map, {
     label: "Scrapbook Map",
   });
 
-  const infoBox = grid.set(0, 12, 12, 4, blessed.box, {
+  const infoBox = grid.set(0, mapCols, 12, infoCols, blessed.box, {
     label: "Bookmark Info",
     content: "Select a marker to view bookmark info",
     scrollable: true,
@@ -698,32 +782,99 @@ export function createMapView(bookmarks) {
     },
   });
 
+  // Filter bookmarks with location data - check top-level lat/lng fields
   const markers = bookmarks
-    .filter(
-      (bookmark) => bookmark.metadata.latitude && bookmark.metadata.longitude
-    )
-    .map((bookmark, index) => ({
-      lon: bookmark.metadata.longitude,
-      lat: bookmark.metadata.latitude,
-      color: "green",
-      char: "•",
-      label: bookmark.scrap_id || bookmark.id,
-      bookmarkData: bookmark,
-      index: index,
-    }));
+    .filter((bookmark) => {
+      // Check top-level latitude/longitude first
+      if (bookmark.latitude && bookmark.longitude) {
+        return true;
+      }
+      // Check if location field has coordinates
+      if (bookmark.location) {
+        try {
+          const locationObj = typeof bookmark.location === 'string'
+            ? JSON.parse(bookmark.location)
+            : bookmark.location;
+          return locationObj.latitude && locationObj.longitude;
+        } catch (e) {
+          return false;
+        }
+      }
+      return false;
+    })
+    .map((bookmark, index) => {
+      let lat, lon;
 
+      // Get coordinates from top-level fields first
+      if (bookmark.latitude && bookmark.longitude) {
+        lat = bookmark.latitude;
+        lon = bookmark.longitude;
+      } else if (bookmark.location) {
+        // Try to parse from location field
+        try {
+          const locationObj = typeof bookmark.location === 'string'
+            ? JSON.parse(bookmark.location)
+            : bookmark.location;
+          lat = locationObj.latitude;
+          lon = locationObj.longitude;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      return {
+        lon: lon,
+        lat: lat,
+        color: "green",
+        char: "•",
+        label: bookmark.scrap_id || bookmark.id,
+        bookmarkData: bookmark,
+        index: index,
+      };
+    })
+    .filter(Boolean); // Remove null entries
+
+  // Add markers to map
   markers.forEach((marker) => map.addMarker(marker));
 
-  let selectedMarkerIndex = -1;
+  // Initialize state
+  let selectedMarkerIndex = markers.length > 0 ? 0 : -1;
+
+  // Show initial info
+  if (markers.length > 0) {
+    showBookmarkInfo(markers[0].bookmarkData);
+    infoBox.setContent(
+      `Found ${markers.length} bookmarks with location data\n\n` +
+      infoBox.getContent()
+    );
+  } else {
+    infoBox.setContent(
+      `No bookmarks found with location data.\n\n` +
+      `Total bookmarks: ${bookmarks.length}\n` +
+      `Need latitude/longitude coordinates to display on map.`
+    );
+  }
 
   function showBookmarkInfo(bookmark) {
-    infoBox.setContent(
-      `Content: ${bookmark.content}\n\nMetadata: ${JSON.stringify(
-        bookmark.metadata,
-        null,
-        2
-      )}`
-    );
+    const rawContent = bookmark.content || bookmark.title || bookmark.url || "No content";
+    const content = stripMarkdown(rawContent);
+    const source = bookmark.source || "Unknown";
+    const tags = formatTags(bookmark.tags);
+    const location = formatLocation(bookmark.location);
+    const financial = formatFinancialAnalysis(bookmark.financial_analysis);
+    const relationships = formatRelationships(bookmark.relationships);
+
+    let info = `Source: ${source}\n\n`;
+    info += `Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}\n\n`;
+
+    if (tags) info += `Tags: ${tags}\n\n`;
+    if (location) info += `Location: ${location}\n\n`;
+    if (financial) info += `Financial: ${financial}\n\n`;
+    if (relationships) info += `Relationships: ${relationships}\n\n`;
+
+    info += `Coordinates: ${bookmark.latitude}, ${bookmark.longitude}`;
+
+    infoBox.setContent(info);
   }
 
   screen.key(["q", "C-c"], () => process.exit(0));
@@ -743,4 +894,434 @@ export function createMapView(bookmarks) {
   });
 
   screen.render();
+}
+
+export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = null) {
+  const title = focusBookmark
+    ? `Force Layout - ${focusBookmark.title?.substring(0, 40) || 'Current Bookmark'} Relationships`
+    : "Scrapbook Force Layout - Relationship Graph";
+
+  const screen = blessed.screen({
+    smartCSR: true,
+    title: title,
+  });
+
+  // Ensure valid terminal dimensions
+  const terminalWidth = process.stdout.columns || 80;
+  const terminalHeight = process.stdout.rows || 24;
+
+  const grid = new contrib.grid({ rows: 12, cols: 12, screen: screen });
+
+  // Create main graph area
+  const graphBox = grid.set(0, 0, 10, 12, blessed.box, {
+    label: "Relationship Force Graph",
+    border: "line",
+    style: {
+      border: { fg: "cyan" }
+    }
+  });
+
+  // Info panel
+  const infoLabel = focusBookmark ? "Bookmark Relationships" : "Node Info";
+  const infoBox = grid.set(10, 0, 2, 12, blessed.box, {
+    label: infoLabel,
+    content: "Press F to start force simulation\nArrow keys to navigate\nQ to quit",
+    border: "line",
+    scrollable: true,
+    keys: true,
+    vi: true,
+    style: {
+      border: { fg: "green" }
+    }
+  });
+
+  // Extract nodes and links from bookmarks with relationships
+  const nodes = new Map();
+  const links = [];
+
+  // If we have a focus bookmark, start with its relationships
+  if (focusBookmark) {
+    // Add the focus bookmark as the central node
+    const centralNodeId = focusBookmark.scrap_id || focusBookmark.id;
+    nodes.set(centralNodeId, {
+      id: centralNodeId,
+      name: focusBookmark.title || focusBookmark.content?.substring(0, 30) || centralNodeId,
+      source: focusBookmark.source,
+      bookmark: focusBookmark,
+      x: 40, // Center it
+      y: 12,
+      vx: 0,
+      vy: 0,
+      isCentral: true
+    });
+
+    // Add relationships from the focus bookmark
+    if (focusBookmark.relationships && Array.isArray(focusBookmark.relationships)) {
+      focusBookmark.relationships.forEach(rel => {
+        // Skip empty relationship objects
+        if (!rel || typeof rel !== 'object' || Object.keys(rel).length === 0) return;
+
+        // Handle both old and new schema formats
+        const targetName = rel.target?.name || rel.target;
+        const relType = rel.type || rel.relationship || 'RELATED_TO';
+
+        // Skip if no valid target name
+        if (!targetName) return;
+
+        // Create target node
+        const targetId = `node_${String(targetName).replace(/\s+/g, '_')}`;
+        if (!nodes.has(targetId)) {
+          nodes.set(targetId, {
+            id: targetId,
+            name: String(targetName),
+            source: 'relationship',
+            x: Math.random() * 60 + 5,
+            y: Math.random() * 20 + 2,
+            vx: 0,
+            vy: 0
+          });
+        }
+
+        links.push({
+          source: centralNodeId,
+          target: targetId,
+          type: relType
+        });
+      });
+    }
+  } else {
+    // Fallback: add all bookmarks as potential nodes (original behavior)
+    bookmarks.forEach(bookmark => {
+      const nodeId = bookmark.scrap_id || bookmark.id;
+      if (!nodes.has(nodeId)) {
+        nodes.set(nodeId, {
+          id: nodeId,
+          name: bookmark.title || bookmark.content?.substring(0, 30) || nodeId,
+          source: bookmark.source,
+          bookmark: bookmark,
+          x: Math.random() * 60 + 5,
+          y: Math.random() * 20 + 2,
+          vx: 0,
+          vy: 0
+        });
+      }
+    });
+
+    // Add relationships as links (original behavior)
+    bookmarks.forEach(bookmark => {
+      if (bookmark.relationships && Array.isArray(bookmark.relationships)) {
+        bookmark.relationships.forEach(rel => {
+          // Skip empty relationship objects
+          if (!rel || typeof rel !== 'object' || Object.keys(rel).length === 0) return;
+
+          const sourceId = bookmark.scrap_id || bookmark.id;
+          const targetName = rel.target?.name || rel.target;
+          const relType = rel.type || rel.relationship || 'RELATED_TO';
+
+          if (!targetName) return;
+
+          // Find or create target node
+          let targetId = null;
+          for (const [id, node] of nodes) {
+            if (node.name.includes(targetName) || node.id === targetName) {
+              targetId = id;
+              break;
+            }
+          }
+
+          if (!targetId) {
+            targetId = `node_${String(targetName).replace(/\s+/g, '_')}`;
+            nodes.set(targetId, {
+              id: targetId,
+              name: String(targetName),
+              source: 'relationship',
+              x: Math.random() * 60 + 5,
+              y: Math.random() * 20 + 2,
+              vx: 0,
+              vy: 0
+            });
+          }
+
+          links.push({
+            source: sourceId,
+            target: targetId,
+            type: relType
+          });
+        });
+      }
+    });
+  }
+
+  const nodeArray = Array.from(nodes.values());
+
+  let animationRunning = false;
+  let selectedNodeIndex = 0;
+
+  function renderGraph() {
+    const width = graphBox.width - 2;
+    const height = graphBox.height - 2;
+
+    // Create ASCII canvas
+    const canvas = Array(height).fill().map(() => Array(width).fill(' '));
+
+    // Draw links
+    links.forEach(link => {
+      const sourceNode = nodes.get(link.source);
+      const targetNode = nodes.get(link.target);
+
+      if (sourceNode && targetNode) {
+        drawLine(canvas,
+          Math.floor(sourceNode.x), Math.floor(sourceNode.y),
+          Math.floor(targetNode.x), Math.floor(targetNode.y),
+          '-'
+        );
+      }
+    });
+
+    // Draw nodes
+    nodeArray.forEach((node, index) => {
+      const x = Math.floor(node.x);
+      const y = Math.floor(node.y);
+
+      if (x >= 0 && x < width && y >= 0 && y < height) {
+        let char;
+        if (node.isCentral) {
+          char = '◆'; // Diamond for central node
+        } else if (index === selectedNodeIndex) {
+          char = '●'; // Filled circle for selected
+        } else {
+          char = '○'; // Empty circle for others
+        }
+        canvas[y][x] = char;
+
+        // Add node label
+        const label = node.name.substring(0, 8);
+        for (let i = 0; i < label.length && x + i + 1 < width; i++) {
+          canvas[y][x + i + 1] = label[i];
+        }
+      }
+    });
+
+    // Convert canvas to string
+    const content = canvas.map(row => row.join('')).join('\n');
+    graphBox.setContent(content);
+  }
+
+  function drawLine(canvas, x0, y0, x1, y1, char) {
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+
+    let x = x0, y = y0;
+
+    while (true) {
+      if (x >= 0 && x < canvas[0].length && y >= 0 && y < canvas.length) {
+        if (canvas[y][x] === ' ') canvas[y][x] = char;
+      }
+
+      if (x === x1 && y === y1) break;
+
+      const e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; x += sx; }
+      if (e2 < dx) { err += dx; y += sy; }
+    }
+  }
+
+  function updateForces() {
+    const width = graphBox.width - 2;
+    const height = graphBox.height - 2;
+
+    // Apply forces
+    nodeArray.forEach(node => {
+      // Center force
+      const centerX = width / 2;
+      const centerY = height / 2;
+      node.vx += (centerX - node.x) * 0.001;
+      node.vy += (centerY - node.y) * 0.001;
+
+      // Repulsion between nodes
+      nodeArray.forEach(other => {
+        if (node !== other) {
+          const dx = node.x - other.x;
+          const dy = node.y - other.y;
+          const distance = Math.sqrt(dx * dx + dy * dy) + 0.1;
+          const force = 5 / (distance * distance);
+          node.vx += (dx / distance) * force;
+          node.vy += (dy / distance) * force;
+        }
+      });
+    });
+
+    // Apply link forces
+    links.forEach(link => {
+      const sourceNode = nodes.get(link.source);
+      const targetNode = nodes.get(link.target);
+
+      if (sourceNode && targetNode) {
+        const dx = targetNode.x - sourceNode.x;
+        const dy = targetNode.y - sourceNode.y;
+        const distance = Math.sqrt(dx * dx + dy * dy) + 0.1;
+        const targetDistance = 10;
+        const force = (distance - targetDistance) * 0.1;
+
+        const fx = (dx / distance) * force;
+        const fy = (dy / distance) * force;
+
+        sourceNode.vx += fx;
+        sourceNode.vy += fy;
+        targetNode.vx -= fx;
+        targetNode.vy -= fy;
+      }
+    });
+
+    // Update positions and apply damping
+    nodeArray.forEach(node => {
+      node.vx *= 0.9; // damping
+      node.vy *= 0.9;
+
+      node.x += node.vx;
+      node.y += node.vy;
+
+      // Keep within bounds
+      node.x = Math.max(1, Math.min(width - 10, node.x));
+      node.y = Math.max(1, Math.min(height - 2, node.y));
+    });
+  }
+
+  function showNodeInfo(node) {
+    let info = `Node: ${node.name}\n\n`;
+    info += `Source: ${node.source}\n`;
+    info += `Position: (${Math.floor(node.x)}, ${Math.floor(node.y)})\n\n`;
+
+    if (node.bookmark) {
+      const bookmark = node.bookmark;
+      const rawContent = bookmark.content || bookmark.title || '';
+      const cleanContent = stripMarkdown(rawContent);
+      info += `Content: ${cleanContent.substring(0, 100)}\n\n`;
+      if (bookmark.tags) {
+        info += `Tags: ${formatTags(bookmark.tags)}\n\n`;
+      }
+    }
+
+    // Show connections
+    const connections = links.filter(l => l.source === node.id || l.target === node.id);
+    if (connections.length > 0) {
+      info += `Connections (${connections.length}): \n`;
+      connections.slice(0, 5).forEach(conn => {
+        const other = conn.source === node.id ? conn.target : conn.source;
+        const otherNode = nodes.get(other);
+        info += `  ${conn.type} ${otherNode?.name || other}\n`;
+      });
+      if (connections.length > 5) {
+        info += `  ... and ${connections.length - 5} more\n`;
+      }
+    }
+
+    infoBox.setContent(info);
+  }
+
+  // Initial render
+  renderGraph();
+  if (nodeArray.length > 0) {
+    showNodeInfo(nodeArray[0]);
+    if (focusBookmark) {
+      const relationshipCount = links.length;
+      infoBox.setContent(
+        `Viewing relationships for:\n${focusBookmark.title?.substring(0, 50) || 'Current bookmark'}\n\n` +
+        `◆ Central node\n○ Related entities\n● Selected node\n\n` +
+        `Relationships: ${relationshipCount}\n\n` +
+        infoBox.getContent()
+      );
+    }
+  }
+
+  // Animation loop
+  let animationInterval;
+
+  function startAnimation() {
+    if (animationRunning) return;
+    animationRunning = true;
+
+    animationInterval = setInterval(() => {
+      updateForces();
+      renderGraph();
+      screen.render();
+    }, 100);
+
+    infoBox.setContent(`Force simulation running...\n\nNodes: ${nodeArray.length}\nLinks: ${links.length}\n\n${infoBox.getContent()}`);
+  }
+
+  function stopAnimation() {
+    if (animationInterval) {
+      clearInterval(animationInterval);
+      animationInterval = null;
+    }
+    animationRunning = false;
+  }
+
+  // Keyboard controls
+  screen.key(["q", "escape"], () => {
+    stopAnimation();
+    screen.destroy();
+    parentScreen.render();
+  });
+
+  screen.key(["f"], () => {
+    if (animationRunning) {
+      stopAnimation();
+      infoBox.setContent(`Animation stopped\n\n${infoBox.getContent()}`);
+    } else {
+      startAnimation();
+    }
+    screen.render();
+  });
+
+  screen.key(["up"], () => {
+    if (nodeArray.length > 0) {
+      selectedNodeIndex = (selectedNodeIndex - 1 + nodeArray.length) % nodeArray.length;
+      showNodeInfo(nodeArray[selectedNodeIndex]);
+      renderGraph();
+      screen.render();
+    }
+  });
+
+  screen.key(["down"], () => {
+    if (nodeArray.length > 0) {
+      selectedNodeIndex = (selectedNodeIndex + 1) % nodeArray.length;
+      showNodeInfo(nodeArray[selectedNodeIndex]);
+      renderGraph();
+      screen.render();
+    }
+  });
+
+  screen.key(["space"], () => {
+    // Randomize positions for new layout
+    nodeArray.forEach(node => {
+      node.x = Math.random() * (graphBox.width - 12) + 5;
+      node.y = Math.random() * (graphBox.height - 4) + 2;
+      node.vx = 0;
+      node.vy = 0;
+    });
+    renderGraph();
+    screen.render();
+  });
+
+  screen.render();
+
+  // Auto-start if there are relationships
+  if (links.length > 0) {
+    setTimeout(startAnimation, 1000);
+  } else {
+    if (focusBookmark) {
+      infoBox.setContent(
+        `No relationships found in this bookmark.\n\n` +
+        `Bookmark: ${focusBookmark.title?.substring(0, 50) || 'Current bookmark'}\n\n` +
+        `This bookmark doesn't have relationship data to visualize.`
+      );
+    } else {
+      infoBox.setContent(`No relationships found in bookmarks.\n\nTotal bookmarks: ${bookmarks.length}\n\nNeed 'relationships' field with graph data.`);
+    }
+  }
 }
