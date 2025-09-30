@@ -1,0 +1,286 @@
+# Preset Themes for Scrapbook CLI
+# Use with: scrapbook-cli --theme <theme-name>
+# Or set in config: theme_preset: <theme-name>
+
+themes:
+  # Default theme - The original scrapbook colors
+  default:
+    name: "Default"
+    description: "Classic green-based terminal theme"
+    colors:
+      palette:
+        - "#00FF00"  # Green
+        - "#FF0080"  # Pink
+        - "#0080FF"  # Blue
+        - "#FF8000"  # Orange
+        - "#8000FF"  # Purple
+        - "#00FF80"  # Cyan
+        - "#FF4000"  # Red
+        - "#80FF00"  # Lime
+        - "#4000FF"  # Indigo
+        - "#FF0040"  # Magenta
+      borders:
+        default: white
+        focus: yellow
+        selected: green
+      text:
+        default: white
+        highlight: green
+
+  # Cyberpunk theme
+  cyberpunk:
+    name: "Cyberpunk"
+    description: "Neon lights in a dark city"
+    colors:
+      palette:
+        - "#FF00FF"  # Magenta
+        - "#00FFFF"  # Cyan
+        - "#FF1493"  # Deep Pink
+        - "#9D00FF"  # Electric Purple
+        - "#FFD700"  # Gold
+        - "#00FF00"  # Matrix Green
+        - "#FF69B4"  # Hot Pink
+        - "#1E90FF"  # Dodger Blue
+        - "#FF00AA"  # Pink
+        - "#00CED1"  # Dark Turquoise
+      borders:
+        default: magenta
+        focus: cyan
+        selected: "#FF00FF"
+      text:
+        default: cyan
+        highlight: magenta
+    animations:
+      summary:
+        duration: 5
+        chunk_size: 12
+
+  # Solarized Dark
+  solarized_dark:
+    name: "Solarized Dark"
+    description: "Popular dark theme with carefully chosen colors"
+    colors:
+      palette:
+        - "#859900"  # Green
+        - "#CB4B16"  # Orange
+        - "#268BD2"  # Blue
+        - "#D33682"  # Magenta
+        - "#2AA198"  # Cyan
+        - "#B58900"  # Yellow
+        - "#DC322F"  # Red
+        - "#6C71C4"  # Violet
+        - "#93A1A1"  # Base1
+        - "#839496"  # Base0
+      borders:
+        default: "#586E75"  # Base01
+        focus: "#93A1A1"   # Base1
+        selected: "#268BD2" # Blue
+      text:
+        default: "#839496"  # Base0
+        highlight: "#93A1A1" # Base1
+
+  # Dracula
+  dracula:
+    name: "Dracula"
+    description: "A dark theme with vibrant colors"
+    colors:
+      palette:
+        - "#50FA7B"  # Green
+        - "#FF79C6"  # Pink
+        - "#8BE9FD"  # Cyan
+        - "#BD93F9"  # Purple
+        - "#FFB86C"  # Orange
+        - "#F1FA8C"  # Yellow
+        - "#FF5555"  # Red
+        - "#6272A4"  # Comment
+        - "#44475A"  # Current Line
+        - "#F8F8F2"  # Foreground
+      borders:
+        default: "#6272A4"
+        focus: "#FF79C6"
+        selected: "#50FA7B"
+      text:
+        default: "#F8F8F2"
+        highlight: "#50FA7B"
+
+  # Nord
+  nord:
+    name: "Nord"
+    description: "An arctic, north-bluish color palette"
+    colors:
+      palette:
+        - "#A3BE8C"  # Green
+        - "#B48EAD"  # Purple
+        - "#88C0D0"  # Cyan
+        - "#5E81AC"  # Blue
+        - "#D08770"  # Orange
+        - "#EBCB8B"  # Yellow
+        - "#BF616A"  # Red
+        - "#81A1C1"  # Light Blue
+        - "#8FBCBB"  # Teal
+        - "#ECEFF4"  # Snow
+      borders:
+        default: "#4C566A"
+        focus: "#88C0D0"
+        selected: "#A3BE8C"
+      text:
+        default: "#ECEFF4"
+        highlight: "#88C0D0"
+
+  # Tokyo Night
+  tokyo_night:
+    name: "Tokyo Night"
+    description: "A clean, dark theme inspired by Tokyo city lights"
+    colors:
+      palette:
+        - "#9ECE6A"  # Green
+        - "#BB9AF7"  # Purple
+        - "#7DCFFF"  # Cyan
+        - "#7AA2F7"  # Blue
+        - "#FF9E64"  # Orange
+        - "#E0AF68"  # Yellow
+        - "#F7768E"  # Red
+        - "#2AC3DE"  # Teal
+        - "#73DACA"  # Light Green
+        - "#B4F9F8"  # Light Cyan
+      borders:
+        default: "#565F89"
+        focus: "#7DCFFF"
+        selected: "#9ECE6A"
+      text:
+        default: "#C0CAF5"
+        highlight: "#7DCFFF"
+
+  # Matrix
+  matrix:
+    name: "Matrix"
+    description: "You take the red pill, you stay in Wonderland"
+    colors:
+      palette:
+        - "#00FF00"  # Bright Green
+        - "#00CC00"  # Green
+        - "#009900"  # Dark Green
+        - "#00FF44"  # Light Green
+        - "#44FF00"  # Lime Green
+        - "#00FF88"  # Mint Green
+        - "#88FF00"  # Yellow Green
+        - "#00FFAA"  # Aqua Green
+        - "#AAFFAA"  # Pale Green
+        - "#00FF00"  # Matrix Green
+      borders:
+        default: "#009900"
+        focus: "#00FF00"
+        selected: "#00FF44"
+      text:
+        default: "#00CC00"
+        highlight: "#00FF00"
+    animations:
+      summary:
+        duration: 3
+        chunk_size: 15
+    symbols:
+      ui:
+        bullet: "▓"
+        arrow: "▶"
+        dot: "●"
+
+  # High Contrast
+  high_contrast:
+    name: "High Contrast"
+    description: "Maximum readability with high contrast colors"
+    colors:
+      palette:
+        - "#FFFFFF"  # White
+        - "#00FF00"  # Green
+        - "#FFFF00"  # Yellow
+        - "#00FFFF"  # Cyan
+        - "#FF00FF"  # Magenta
+        - "#FFA500"  # Orange
+        - "#FF0000"  # Red
+        - "#0080FF"  # Blue
+        - "#800080"  # Purple
+        - "#00FF80"  # Mint
+      borders:
+        default: white
+        focus: yellow
+        selected: cyan
+      text:
+        default: white
+        highlight: yellow
+    display:
+      column_widths:
+        date: 20
+        source: 15
+        content: 65
+
+  # Minimalist
+  minimalist:
+    name: "Minimalist"
+    description: "Clean and simple with muted colors"
+    colors:
+      palette:
+        - "#AAAAAA"  # Gray
+        - "#888888"  # Dark Gray
+        - "#CCCCCC"  # Light Gray
+        - "#666666"  # Darker Gray
+        - "#EEEEEE"  # Very Light Gray
+        - "#444444"  # Very Dark Gray
+        - "#999999"  # Medium Gray
+        - "#BBBBBB"  # Light Medium Gray
+        - "#777777"  # Dark Medium Gray
+        - "#DDDDDD"  # Near White
+      borders:
+        default: "#666666"
+        focus: "#AAAAAA"
+        selected: "#CCCCCC"
+      text:
+        default: "#CCCCCC"
+        highlight: "#EEEEEE"
+    animations:
+      summary:
+        enabled: false
+      force_layout:
+        auto_start: false
+    symbols:
+      ui:
+        bullet: "-"
+        arrow: ">"
+        dot: "*"
+        diamond: "+"
+        circle: "o"
+        filled_circle: "@"
+
+  # Retro Amber
+  retro_amber:
+    name: "Retro Amber"
+    description: "Classic amber phosphor monitor aesthetic"
+    colors:
+      palette:
+        - "#FFAA00"  # Amber
+        - "#FF8800"  # Dark Amber
+        - "#FFCC00"  # Light Amber
+        - "#FF6600"  # Orange Amber
+        - "#FFEE00"  # Yellow Amber
+        - "#CC8800"  # Brown Amber
+        - "#FFBB44"  # Pale Amber
+        - "#EE9900"  # Medium Amber
+        - "#DDAA00"  # Gold Amber
+        - "#FFDD88"  # Light Gold
+      borders:
+        default: "#CC8800"
+        focus: "#FFAA00"
+        selected: "#FFCC00"
+      text:
+        default: "#FFAA00"
+        highlight: "#FFEE00"
+    symbols:
+      ui:
+        bullet: "■"
+        arrow: "►"
+        dot: "▪"
+        diamond: "◆"
+    display:
+      column_widths:
+        date: 18
+        source: 12
+        content: 70

@@ -2,6 +2,7 @@
 
 import { Command } from "commander";
 import { loadBookmarks, displayScrapJson } from "./data.js";
+import { loadConfig } from "./config.js";
 import blessed from "blessed";
 import {
   createUI,
@@ -86,6 +87,11 @@ async function showLoadingScreen() {
 
 // Main function
 async function main(options) {
+  // Load config with theme if specified
+  if (options.theme) {
+    loadConfig({ theme: options.theme, silent: false });
+  }
+
   const { screen: loadingScreen, loadingInterval } = await showLoadingScreen();
 
   try {
@@ -161,7 +167,8 @@ program
   .name("scrapbook-cli")
   .description("CLI for managing and viewing scrapbook entries")
   .version("1.0.0")
-  .option("-m, --map", "Display a map of all bookmarks");
+  .option("-m, --map", "Display a map of all bookmarks")
+  .option("-t, --theme <theme>", "Use a specific theme preset");
 
 program
   .command("list")

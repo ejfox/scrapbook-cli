@@ -19,7 +19,13 @@
   "license": "MIT",
   "scripts": {
     "start": "node index.mjs list",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "config": "node config-cli.js",
+    "config:themes": "node config-cli.js themes",
+    "config:edit": "node config-cli.js edit",
+    "config:validate": "node config-cli.js validate",
+    "config:info": "node config-cli.js info",
+    "config:watch": "node config-cli.js watch"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.4",
@@ -28,11 +34,13 @@
     "blessed-contrib": "^4.11.0",
     "boxen": "^8.0.1",
     "chalk": "^5.3.0",
+    "chokidar": "^4.0.3",
     "commander": "^12.1.0",
     "d3": "^7.9.0",
     "date-fns": "^3.6.0",
     "dotenv": "^16.4.5",
     "fuse.js": "^7.0.0",
+    "joi": "^18.0.1",
     "js-yaml": "^4.1.0",
     "terminal-image": "^2.0.0"
   }
