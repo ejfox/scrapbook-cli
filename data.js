@@ -30,9 +30,8 @@ export async function loadBookmarks() {
     .limit(limit);
 
   if (error) {
-    // Silently fail and return empty array
-    // TODO: Proper error handling/reporting
-    return [];
+    console.error(`Error loading bookmarks from ${tableName}:`, error.message);
+    throw new Error(`Failed to load bookmarks: ${error.message}`);
   }
 
   return data.map((bookmark) => ({
