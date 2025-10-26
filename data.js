@@ -193,6 +193,33 @@ export function formatSummary(summary) {
   return cleaned.length > 100 ? cleaned.substring(0, 100) + "..." : cleaned;
 }
 
+export function formatContentType(contentType) {
+  if (!contentType) return "";
+  return contentType.toUpperCase();
+}
+
+export function formatConceptTags(conceptTags) {
+  if (!conceptTags || !Array.isArray(conceptTags)) return "";
+  return conceptTags.join(", ");
+}
+
+export function formatExtractionConfidence(confidence) {
+  if (!confidence) return "";
+
+  const formatScore = (score) => {
+    const percent = Math.round(score * 100);
+    const bar = "█".repeat(Math.floor(percent / 10)) + "░".repeat(10 - Math.floor(percent / 10));
+    return `${bar} ${percent}%`;
+  };
+
+  let result = [];
+  if (confidence.summary !== undefined) result.push(`Summary: ${formatScore(confidence.summary)}`);
+  if (confidence.tags !== undefined) result.push(`Tags: ${formatScore(confidence.tags)}`);
+  if (confidence.relationships !== undefined) result.push(`Relations: ${formatScore(confidence.relationships)}`);
+
+  return result.join("\n");
+}
+
 export async function displayScrapJson(scrap_id) {
   const tableName = config.database?.table || "scraps";
 

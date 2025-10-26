@@ -11,7 +11,10 @@ import {
   formatFinancialAnalysis,
   formatTags,
   formatSummary,
-  stripMarkdown
+  stripMarkdown,
+  formatContentType,
+  formatConceptTags,
+  formatExtractionConfidence
 } from "./data.js";
 import chalk from "chalk";
 import { createForceLayoutView } from "./ui/force-layout.js";
@@ -57,6 +60,12 @@ export function viewSummary(
       formattedValue = formatFinancialAnalysis(value);
     } else if (header === "tags") {
       formattedValue = formatTags(value);
+    } else if (header === "content_type") {
+      formattedValue = formatContentType(value);
+    } else if (header === "concept_tags") {
+      formattedValue = formatConceptTags(value);
+    } else if (header === "extraction_confidence") {
+      formattedValue = formatExtractionConfidence(value);
     } else if (header === "summary") {
       formattedValue = value; // Keep full summary in detail view
     } else if (header === "created_at" || header === "updated_at") {
@@ -667,7 +676,13 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
     .map(([key, value]) => {
       let displayValue = "";
 
-      if (key === "relationships" && Array.isArray(value)) {
+      if (key === "content_type") {
+        displayValue = formatContentType(value);
+      } else if (key === "concept_tags") {
+        displayValue = formatConceptTags(value);
+      } else if (key === "extraction_confidence") {
+        displayValue = formatExtractionConfidence(value);
+      } else if (key === "relationships" && Array.isArray(value)) {
         displayValue =
           "[\n  " +
           value
