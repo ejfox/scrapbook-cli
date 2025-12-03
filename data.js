@@ -161,30 +161,37 @@ export async function reloadBookmarks(updateDisplay) {
 export async function searchBookmarks(query) {
   const tableName = config.database?.table || "scraps";
   const searchColumns = config.database?.search_columns || ["content", "tags", "summary", "title"];
-  const searchType = config.database?.search_type || "websearch";
-  const searchConfig = config.database?.search_config || "english";
   const orderBy = config.database?.order_by || "created_at";
   const orderDirection = config.database?.order_direction || "desc";
 
-  const { data, error } = await supabase
+  // Use the same optimized field selection as loadBookmarks
+  const selectFields = config.database?.default_select ||
+    "scrap_id,id,created_at,updated_at,source,content,url,title,tags,summary,meta_summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis";
+
+  // Build case-insensitive pattern search across multiple columns
+  // This is more reliable for simple keyword searches than full-text search
+  const searchPattern = `%${query}%`;
+
+  // Build OR query for all search columns
+  let queryBuilder = supabase
     .from(tableName)
-    .select("*")
-    .textSearch(
-      searchColumns,
-      query,
-      {
-        type: searchType,
-        config: searchConfig,
-      },
-      { columns: "*" }
-    )
+    .select(selectFields);
+
+  // Add .or() condition for each search column with case-insensitive ILIKE
+  const orConditions = searchColumns.map(col => `${col}.ilike.${searchPattern}`).join(',');
+  queryBuilder = queryBuilder.or(orConditions);
+
+  const { data, error } = await queryBuilder
     .order(orderBy, { ascending: orderDirection === "asc" });
 
   if (error) {
     throw new Error(`Error searching bookmarks: ${error.message}`);
   }
 
-  return data;
+  return data.map((bookmark) => ({
+    ...bookmark,
+    public_url: `https://ejfox.com/scrapbook/${bookmark.scrap_id || bookmark.id}`,
+  }));
 }
 
 // Schema-aware formatting functions
