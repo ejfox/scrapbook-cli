@@ -1,11 +1,62 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { loadBookmarks, displayScrapJson } from "./data.js";
+import { loadBookmarks, displayScrapJson, searchBookmarks } from "./data.js";
 import { loadConfig } from "./config.js";
 import blessed from "blessed";
 import { createUI, setupKeyboardShortcuts, displayHelp } from "./ui.js";
 import { createMapView } from "./ui/map-view.js";
+import { format } from "date-fns";
+
+// Output formatters for CLI citizen mode
+function outputJSON(data) {
+  console.log(JSON.stringify(data, null, 2));
+}
+
+function outputJSONL(data) {
+  data.forEach(item => console.log(JSON.stringify(item)));
+}
+
+function outputTSV(data) {
+  if (!data || data.length === 0) return;
+
+  // Get all keys from first item
+  const keys = Object.keys(data[0]);
+
+  // Header row
+  console.log(keys.join("\t"));
+
+  // Data rows
+  data.forEach(item => {
+    const values = keys.map(key => {
+      const val = item[key];
+      if (val === null || val === undefined) return "";
+      if (typeof val === "object") return JSON.stringify(val);
+      return String(val).replace(/\t/g, " ").replace(/\n/g, " ");
+    });
+    console.log(values.join("\t"));
+  });
+}
+
+function outputCSV(data) {
+  if (!data || data.length === 0) return;
+
+  const keys = Object.keys(data[0]);
+
+  // Header row
+  console.log(keys.map(k => `"${k}"`).join(","));
+
+  // Data rows
+  data.forEach(item => {
+    const values = keys.map(key => {
+      const val = item[key];
+      if (val === null || val === undefined) return '""';
+      if (typeof val === "object") return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
+      return `"${String(val).replace(/"/g, '""')}"`;
+    });
+    console.log(values.join(","));
+  });
+}
 
 async function showLoadingScreen() {
   const screen = blessed.screen({
@@ -156,15 +207,87 @@ program
   .option("-m, --map", "Display a map of all bookmarks")
   .option("-t, --theme <theme>", "Use a specific theme preset");
 
+// TUI mode (default)
+program
+  .command("ui", { isDefault: true })
+  .description("Launch interactive TUI (default)")
+  .option("-m, --map", "Display a map of all bookmarks")
+  .option("-t, --theme <theme>", "Use a specific theme preset")
+  .action((options) => main(options));
+
+// List command with structured output options
 program
   .command("list")
-  .description("List all bookmarks")
-  .action((cmd) => main(cmd));
+  .description("List all bookmarks in structured format")
+  .option("--json", "Output as JSON array")
+  .option("--jsonl", "Output as JSON Lines (one per line)")
+  .option("--tsv", "Output as TSV (tab-separated values)")
+  .option("--csv", "Output as CSV")
+  .option("-l, --limit <n>", "Limit number of results", parseInt)
+  .action(async (options) => {
+    loadConfig({ silent: true });
+    const bookmarks = await loadBookmarks();
 
+    const limited = options.limit ? bookmarks.slice(0, options.limit) : bookmarks;
+
+    if (options.json) {
+      outputJSON(limited);
+    } else if (options.jsonl) {
+      outputJSONL(limited);
+    } else if (options.tsv) {
+      outputTSV(limited);
+    } else if (options.csv) {
+      outputCSV(limited);
+    } else {
+      // Default: pretty list
+      outputJSON(limited);
+    }
+  });
+
+// Search command
+program
+  .command("search <query>")
+  .description("Search bookmarks and output results")
+  .option("--json", "Output as JSON array")
+  .option("--jsonl", "Output as JSON Lines")
+  .option("--tsv", "Output as TSV")
+  .option("--csv", "Output as CSV")
+  .action(async (query, options) => {
+    loadConfig({ silent: true });
+    const results = await searchBookmarks(query);
+
+    if (options.json) {
+      outputJSON(results);
+    } else if (options.jsonl) {
+      outputJSONL(results);
+    } else if (options.tsv) {
+      outputTSV(results);
+    } else if (options.csv) {
+      outputCSV(results);
+    } else {
+      outputJSON(results);
+    }
+  });
+
+// Get single bookmark
+program
+  .command("get <scrap_id>")
+  .description("Get a specific bookmark by ID")
+  .option("--json", "Output as JSON (default)")
+  .option("-f, --field <field>", "Extract specific field (e.g., url, title)")
+  .action(async (scrap_id, options) => {
+    loadConfig({ silent: true });
+    await displayScrapJson(scrap_id, options);
+  });
+
+// Legacy json command (kept for backwards compatibility)
 program
   .command("json <scrap_id>")
-  .description("Display JSON for a specific scrap")
-  .action((scrap_id) => displayScrapJson(scrap_id));
+  .description("Display JSON for a specific scrap (legacy, use 'get' instead)")
+  .action((scrap_id) => {
+    loadConfig({ silent: true });
+    displayScrapJson(scrap_id);
+  });
 
 program.option("-h, --help", "Display help information").action((options) => {
   if (options.help) {

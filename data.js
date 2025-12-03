@@ -380,7 +380,7 @@ export function generateMetaSummary(scrap) {
   return summary || "No summary available";
 }
 
-export async function displayScrapJson(scrap_id) {
+export async function displayScrapJson(scrap_id, options = {}) {
   const tableName = config.database?.table || "scraps";
 
   try {
@@ -400,13 +400,27 @@ export async function displayScrapJson(scrap_id) {
       delete data.processing_instance_id;
       delete data.processing_started_at;
 
-      // This console.log is intentional - it's the output for the json command
-      console.log(JSON.stringify(data, null, 2));
+      // If field option provided, extract just that field
+      if (options.field) {
+        const value = data[options.field];
+        if (value !== undefined) {
+          // Output raw value for piping
+          console.log(typeof value === 'object' ? JSON.stringify(value) : value);
+        } else {
+          console.error(`Field '${options.field}' not found`);
+          process.exit(1);
+        }
+      } else {
+        // This console.log is intentional - it's the output for the json command
+        console.log(JSON.stringify(data, null, 2));
+      }
     } else {
       console.log(`No scrap found with ID: ${scrap_id}`);
+      process.exit(1);
     }
   } catch (error) {
     // Output error message for CLI user
     console.error(`Error fetching scrap: ${error.message}`);
+    process.exit(1);
   }
 }
