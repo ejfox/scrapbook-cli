@@ -215,6 +215,66 @@ program
   .option("-t, --theme <theme>", "Use a specific theme preset")
   .action((options) => main(options));
 
+// fzf mode - browse with external fzf
+program
+  .command("fzf")
+  .description("Browse bookmarks with fzf and open selected")
+  .option("-o, --open", "Open selected bookmark in browser")
+  .option("-c, --copy", "Copy selected bookmark URL to clipboard")
+  .option("--field <field>", "Output specific field of selection")
+  .action(async (options) => {
+    loadConfig({ silent: true });
+    const bookmarks = await loadBookmarks();
+
+    const { spawn } = await import("child_process");
+
+    // Format for fzf
+    const fzfLines = bookmarks.map((b, idx) => {
+      const date = format(new Date(b.created_at), "MM/dd/yy");
+      const source = (b.source || "?").padEnd(10);
+      const title = b.title || b.content?.substring(0, 60) || "[no title]";
+      return `${idx}\t${date} │ ${source} │ ${title}`;
+    });
+
+    const fzf = spawn("fzf", [
+      "--delimiter=\t",
+      "--with-nth=2..",
+      "--preview=echo {} | cut -f1 | xargs -I {} node index.mjs get $(node index.mjs list --jsonl 2>/dev/null | sed -n '{p}' | jq -r .scrap_id) 2>/dev/null",
+      "--preview-window=wrap:60%",
+      "--prompt=📚 Select bookmark > ",
+      "--height=100%",
+      "--border",
+    ], { stdio: ["pipe", "pipe", "inherit"] });
+
+    let output = "";
+    fzf.stdout.on("data", (data) => { output += data.toString(); });
+
+    fzf.on("close", async (code) => {
+      if (code === 0 && output.trim()) {
+        const index = parseInt(output.trim().split("\t")[0], 10);
+        const bookmark = bookmarks[index];
+
+        if (options.field) {
+          console.log(bookmark[options.field]);
+        } else if (options.open) {
+          const { openUrl } = await import("./ui/safe-exec.js");
+          await openUrl(bookmark.url);
+          console.log(`Opened: ${bookmark.title || bookmark.url}`);
+        } else if (options.copy) {
+          const { copyToClipboard } = await import("./ui/safe-exec.js");
+          await copyToClipboard(bookmark.url);
+          console.log(`Copied: ${bookmark.url}`);
+        } else {
+          // Default: output full JSON
+          console.log(JSON.stringify(bookmark, null, 2));
+        }
+      }
+    });
+
+    fzf.stdin.write(fzfLines.join("\n"));
+    fzf.stdin.end();
+  });
+
 // List command with structured output options
 program
   .command("list")

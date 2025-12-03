@@ -183,6 +183,19 @@ scrapbook-cli list --jsonl | \
 
 See [CLI-EXAMPLES.md](./CLI-EXAMPLES.md) for more advanced usage patterns!
 
+## 🔌 Power User Integrations
+
+scrapbook-cli integrates seamlessly with your power user workflow:
+
+- **fzf**: Standalone fuzzy finder mode (`scrapbook-cli fzf`)
+- **Zsh/Fish completions**: Tab completion for all commands
+- **Powerlevel10k**: Show bookmark count in your prompt
+- **SketchyBar**: Display bookmark stats in your macOS menu bar
+- **Shell keybindings**: Quick access with Ctrl+B
+- **Alfred/Raycast**: Search workflows
+
+See [INTEGRATIONS.md](./INTEGRATIONS.md) for detailed setup instructions!
+
 ### 🕹️ Controls (List Mode)
 
 - `↑/↓` or `j/k`: Navigate entries

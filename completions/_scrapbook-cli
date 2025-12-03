@@ -1,0 +1,80 @@
+#compdef scrapbook-cli
+
+# Zsh completion for scrapbook-cli
+# Install: Copy to /usr/local/share/zsh/site-functions/ or add to $fpath
+
+_scrapbook-cli() {
+  local -a commands
+  commands=(
+    'ui:Launch interactive TUI (default)'
+    'fzf:Browse bookmarks with fzf'
+    'list:List all bookmarks in structured format'
+    'search:Search bookmarks and output results'
+    'get:Get a specific bookmark by ID'
+    'json:Display JSON for a specific scrap (legacy)'
+  )
+
+  local -a output_formats
+  output_formats=(
+    '--json[Output as JSON array]'
+    '--jsonl[Output as JSON Lines]'
+    '--tsv[Output as TSV]'
+    '--csv[Output as CSV]'
+  )
+
+  local -a fzf_opts
+  fzf_opts=(
+    '-o[Open selected bookmark in browser]'
+    '--open[Open selected bookmark in browser]'
+    '-c[Copy selected bookmark URL to clipboard]'
+    '--copy[Copy selected bookmark URL to clipboard]'
+    '--field[Output specific field of selection]:field:(url title tags source content summary)'
+  )
+
+  _arguments -C \
+    '1: :->command' \
+    '*:: :->args'
+
+  case $state in
+    command)
+      _describe 'command' commands
+      ;;
+    args)
+      case $words[1] in
+        ui)
+          _arguments \
+            '-m[Display a map of all bookmarks]' \
+            '--map[Display a map of all bookmarks]' \
+            '-t[Use a specific theme preset]:theme:' \
+            '--theme[Use a specific theme preset]:theme:'
+          ;;
+        fzf)
+          _arguments $fzf_opts
+          ;;
+        list)
+          _arguments \
+            $output_formats \
+            '-l[Limit number of results]:limit:' \
+            '--limit[Limit number of results]:limit:'
+          ;;
+        search)
+          _arguments \
+            $output_formats \
+            '1:query:'
+          ;;
+        get)
+          _arguments \
+            '--json[Output as JSON (default)]' \
+            '-f[Extract specific field]:field:(url title tags source content summary)' \
+            '--field[Extract specific field]:field:(url title tags source content summary)' \
+            '1:scrap_id:'
+          ;;
+        json)
+          _arguments '1:scrap_id:'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_scrapbook-cli "$@"
