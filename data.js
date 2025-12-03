@@ -160,7 +160,6 @@ export async function reloadBookmarks(updateDisplay) {
 
 export async function searchBookmarks(query) {
   const tableName = config.database?.table || "scraps";
-  const searchColumns = config.database?.search_columns || ["content", "tags", "summary", "title"];
   const orderBy = config.database?.order_by || "created_at";
   const orderDirection = config.database?.order_direction || "desc";
 
@@ -168,18 +167,22 @@ export async function searchBookmarks(query) {
   const selectFields = config.database?.default_select ||
     "scrap_id,id,created_at,updated_at,source,content,url,title,tags,summary,meta_summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis";
 
-  // Build case-insensitive pattern search across multiple columns
-  // This is more reliable for simple keyword searches than full-text search
+  // Build case-insensitive pattern search across text columns only
+  // Exclude JSONB columns like tags which need special handling
   const searchPattern = `%${query}%`;
 
-  // Build OR query for all search columns
+  // Build OR conditions - use ILIKE for text fields only
+  // Only search in text/varchar columns (not enum/jsonb)
+  const orConditions = [
+    `content.ilike.${searchPattern}`,
+    `summary.ilike.${searchPattern}`,
+    `title.ilike.${searchPattern}`,
+  ].join(',');
+
   let queryBuilder = supabase
     .from(tableName)
-    .select(selectFields);
-
-  // Add .or() condition for each search column with case-insensitive ILIKE
-  const orConditions = searchColumns.map(col => `${col}.ilike.${searchPattern}`).join(',');
-  queryBuilder = queryBuilder.or(orConditions);
+    .select(selectFields)
+    .or(orConditions);
 
   const { data, error } = await queryBuilder
     .order(orderBy, { ascending: orderDirection === "asc" });
