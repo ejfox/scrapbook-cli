@@ -25,7 +25,9 @@ export function viewSummary(index, currentBookmarks, summaryBox, alertBox, miniM
   uiState.stopCurrentAnimation();
 
   // Reset scroll position to top when viewing a new scrap
-  summaryBox.setScrollPerc(0);
+  if (summaryBox.setScroll) {
+    summaryBox.setScroll(0);
+  }
 
   const bookmark = currentBookmarks[index];
   if (!bookmark) {
@@ -824,7 +826,9 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
   summaryBox.setContent(fullContent + "\n\n" + chalk.dim("Use ↑/↓ to scroll, ESC to close"));
 
   // Reset scroll position to top when opening full-screen view
-  summaryBox.setScrollPerc(0);
+  if (summaryBox.setScroll) {
+    summaryBox.setScroll(0);
+  }
 
   summaryBox.show();
   summaryBox.focus();
