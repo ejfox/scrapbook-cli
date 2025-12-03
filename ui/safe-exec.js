@@ -157,6 +157,7 @@ export function openInEditor(scrap, screen) {
             '## Metadata',
             '',
             `**Scrap ID:** ${scrap.scrap_id || 'N/A'}`,
+            `**UUID:** ${scrap.id || 'N/A'}`,
             `**URL:** ${scrap.url || 'N/A'}`,
             `**Public URL:** ${scrap.public_url || 'N/A'}`,
             `**Source:** ${scrap.source || 'N/A'}`,
@@ -166,6 +167,12 @@ export function openInEditor(scrap, screen) {
             `**Updated:** ${scrap.updated_at || 'N/A'}`,
             `**Published:** ${scrap.published_at || 'N/A'}`,
             `**Shared:** ${scrap.shared ? 'Yes' : 'No'}`,
+            '',
+            '### Processing Info',
+            '',
+            `**Graph Imported:** ${scrap.graph_imported ? 'Yes' : 'No'}`,
+            `**Processing Instance:** ${scrap.processing_instance_id || 'N/A'}`,
+            `**Processing Started:** ${scrap.processing_started_at || 'N/A'}`,
             '',
           ];
 
