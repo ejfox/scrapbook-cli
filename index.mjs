@@ -380,6 +380,28 @@ program
     }
   });
 
+// Interactive graph exploration
+program
+  .command("graph <entity>")
+  .description("Launch interactive TUI to explore entity relationships")
+  .action(async (entity) => {
+    loadConfig({ silent: true });
+    try {
+      const result = await queryByEntity(entity);
+
+      if (result.total_scraps === 0) {
+        console.log(`No relationships found for entity: ${entity}`);
+        process.exit(1);
+      }
+
+      const { createEntityGraphView } = await import("./ui/entity-graph.js");
+      createEntityGraphView(result, entity);
+    } catch (error) {
+      console.error('Error launching graph view:', error.message);
+      process.exit(1);
+    }
+  });
+
 // Legacy json command (kept for backwards compatibility)
 program
   .command("json <scrap_id>")

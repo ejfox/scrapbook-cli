@@ -18,6 +18,7 @@ A cyberpunk-inspired, terminal-based interface for your digital scrapbook. Dive 
 - Visual type indicators for different entry sources
 - Mini-map view for entries with location data
 - Full-screen map view of all geotagged entries
+- **Interactive graph explorer** - d3-force powered entity relationship visualization
 
 ### CLI Mode (Unix-Friendly)
 - Multiple output formats: JSON, JSONL, TSV, CSV
@@ -111,6 +112,19 @@ scrapbook-cli entity "Skoufis" --graph
 
 # Full data output
 scrapbook-cli entity "Skoufis" --json
+```
+
+#### Interactive graph explorer
+
+```bash
+# Launch d3-force powered TUI to explore entity relationships
+scrapbook-cli graph "Skoufis"
+
+# Navigate with arrow keys
+# Press ENTER on any node to explore that entity's relationships
+# Press SPACE to toggle physics animation
+# Press R to reset simulation
+# Press Q to quit
 ```
 
 ### Piping with jq
