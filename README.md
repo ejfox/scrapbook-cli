@@ -181,7 +181,7 @@ scrapbook-cli list --jsonl | \
   jq -r 'select(.created_at > "'$(date -v-7d +%Y-%m-%d)'") | .title'
 ```
 
-See [CLI-EXAMPLES.md](./CLI-EXAMPLES.md) for more advanced usage patterns.
+See [CLI-EXAMPLES.md](./docs/CLI-EXAMPLES.md) for more advanced usage patterns.
 
 ## Power User Integrations
 
@@ -194,7 +194,7 @@ scrapbook-cli integrates seamlessly with your power user workflow:
 - **Shell keybindings**: Quick access with Ctrl+B
 - **Alfred/Raycast**: Search workflows
 
-See [INTEGRATIONS.md](./INTEGRATIONS.md) for detailed setup instructions.
+See [INTEGRATIONS.md](./docs/INTEGRATIONS.md) for detailed setup instructions.
 
 ### Controls (List Mode)
 
