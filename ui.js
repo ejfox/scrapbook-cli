@@ -19,7 +19,7 @@ import {
 import chalk from "chalk";
 import { createForceLayoutView } from "./ui/force-layout.js";
 import { uiState } from "./ui/state.js";
-import { openUrl, copyToClipboard } from "./ui/safe-exec.js";
+import { openUrl, copyToClipboard, launchFzf } from "./ui/safe-exec.js";
 
 export function viewSummary(index, currentBookmarks, summaryBox, alertBox, miniMap, screen) {
   uiState.stopCurrentAnimation();
@@ -384,7 +384,7 @@ export function setupKeyboardShortcuts(
   });
 
   screen.key(["s", "/"], () => {
-    showSearchBox(screen, alertBox, searchQueryBox, updateDisplay, bookmarks);
+    showSearchBox(screen, alertBox, searchQueryBox, table, summaryBox, miniMap, bookmarks);
   });
 
   screen.key(["z", "enter"], () => {
@@ -615,41 +615,25 @@ export function displayHelp() {
 {dim}Press ESC to close{/dim}`;
 }
 
-async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay, bookmarks) {
-  const searchBox = blessed.textbox({
-    parent: screen,
-    top: "center",
-    left: "center",
-    height: 4,
-    width: "50%",
-    label: " Search ",
-    border: "line",
-    style: {
-      border: { fg: "yellow" },
-      label: { fg: "yellow", bold: true },
-    },
-  });
+async function showSearchBox(screen, alertBox, searchQueryBox, table, summaryBox, miniMap, bookmarks) {
+  try {
+    // Launch fzf and get selected bookmark index
+    const selectedIndex = await launchFzf(bookmarks, screen);
 
-  searchBox.focus();
-  searchBox.setContent("");
-  searchBox.readInput();
+    if (selectedIndex !== null && selectedIndex >= 0 && selectedIndex < bookmarks.length) {
+      // Jump to the selected bookmark in the table
+      table.select(selectedIndex);
 
-  searchBox.on("submit", async (text) => {
-    if (!text) return;
+      // Update the summary view
+      viewSummary(selectedIndex, bookmarks, summaryBox, alertBox, miniMap, screen);
 
-    try {
-      const searchResults = await searchBookmarks(text);
-      bookmarks.length = 0;
-      bookmarks.push(...searchResults);
-
-      updateDisplay(bookmarks);
-      alertBox.setContent(`Found ${searchResults.length} results`);
-    } catch (error) {
-      alertBox.setContent(error.message);
+      alertBox.setContent(`Selected: ${bookmarks[selectedIndex].title || bookmarks[selectedIndex].content?.substring(0, 40) || "bookmark"}`);
+    } else {
+      alertBox.setContent("Search cancelled");
     }
-    screen.render();
-    searchBox.destroy();
-  });
+  } catch (error) {
+    alertBox.setContent(`fzf error: ${error.message}. Install fzf to use search.`);
+  }
 
   screen.render();
 }

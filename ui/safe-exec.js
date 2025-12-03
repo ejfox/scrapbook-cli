@@ -1,4 +1,96 @@
 import { spawn } from "child_process";
+import { format } from "date-fns";
+
+/**
+ * Launch fzf with bookmark data and return selected index
+ * @param {Array} bookmarks - Array of bookmarks to search through
+ * @param {Object} screen - Blessed screen to suspend/resume
+ * @returns {Promise<number|null>} Index of selected bookmark or null if cancelled
+ */
+export function launchFzf(bookmarks, screen) {
+  return new Promise((resolve) => {
+    // Suspend the blessed screen to give control to fzf
+    screen.leave();
+
+    // Format bookmarks for fzf display
+    // Use tab-separated format: INDEX\tDISPLAY_LINE
+    const fzfLines = bookmarks.map((bookmark, idx) => {
+      const date = format(new Date(bookmark.created_at), "MM/dd/yy");
+      const source = bookmark.source || bookmark.content_type || "?";
+
+      // Get content preview
+      let content = "";
+      if (bookmark.meta_summary && bookmark.meta_summary !== "No summary available") {
+        content = bookmark.meta_summary;
+      } else if (bookmark.title && bookmark.title !== "[no title]") {
+        content = bookmark.title;
+      } else if (bookmark.content) {
+        content = bookmark.content.substring(0, 100);
+      }
+
+      // Clean content for display - remove tabs and newlines
+      content = content.replace(/[\t\n]/g, " ").substring(0, 80);
+
+      // Format: INDEX\tDATE | SOURCE | CONTENT (tab-separated for easy parsing)
+      const displayLine = `${date} │ ${source.padEnd(10)} │ ${content}`;
+      return `${idx}\t${displayLine}`;
+    });
+
+    const fzfInput = fzfLines.join("\n");
+
+    // Spawn fzf with --delimiter and --with-nth to show only the display part
+    const fzf = spawn("fzf", [
+      "--ansi",
+      "--prompt=Search bookmarks > ",
+      "--height=100%",
+      "--reverse",
+      "--border",
+      "--info=inline",
+      "--delimiter=\t",
+      "--with-nth=2..",  // Only show fields after the first tab (hide index)
+    ], {
+      stdio: ["pipe", "pipe", "inherit"],
+    });
+
+    let output = "";
+
+    fzf.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    fzf.on("error", (err) => {
+      screen.enter();
+      screen.render();
+      resolve(null);
+    });
+
+    fzf.on("close", (code) => {
+      // Resume blessed screen
+      screen.enter();
+      screen.render();
+
+      if (code === 0 && output.trim()) {
+        // Extract index by splitting on tab - first field is the index
+        const parts = output.trim().split("\t");
+        if (parts.length > 0) {
+          const index = parseInt(parts[0], 10);
+          if (!isNaN(index)) {
+            resolve(index);
+            return;
+          }
+        }
+        resolve(null);
+      } else {
+        // User cancelled (ESC) or no selection
+        resolve(null);
+      }
+    });
+
+    // Write bookmark data to fzf stdin
+    fzf.stdin.write(fzfInput);
+    fzf.stdin.end();
+  });
+}
 
 /**
  * Safely open a URL in the default browser
