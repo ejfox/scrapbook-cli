@@ -114,17 +114,35 @@ scrapbook-cli entity "Skoufis" --graph
 scrapbook-cli entity "Skoufis" --json
 ```
 
-#### Interactive graph explorer
+#### Interactive graph explorer (Hacker Mode)
 
 ```bash
 # Launch d3-force powered TUI to explore entity relationships
 scrapbook-cli graph "Skoufis"
 
-# Navigate with arrow keys
-# Press ENTER on any node to explore that entity's relationships
-# Press SPACE to toggle physics animation
-# Press R to reset simulation
-# Press Q to quit
+# Controls:
+# ↑↓/j/k    Navigate nodes
+# ENTER     Explore selected entity (recursive dive)
+# E         Expand network from selected node
+# L         List all scraps for selected entity
+# +         Expand all connected nodes (depth++)
+# SPACE     Toggle physics animation
+# R         Reset simulation
+# Q         Quit
+
+# Status bar shows:
+# - Network size (nodes/links)
+# - Current depth
+# - Expanded entities count (marked with ● in connections list)
+# - Animation status (▶ Running / ⏸ Paused)
+
+# Hacker workflow:
+scrapbook-cli graph "Skoufis"
+# Navigate to "New York Attorney General"
+# Press E to expand that entity's network
+# Watch new nodes and links appear dynamically
+# Press + to expand ALL connected nodes (spider out)
+# Press L to see which scraps mention the entity
 ```
 
 ### Piping with jq
