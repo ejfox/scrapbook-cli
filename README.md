@@ -1,4 +1,4 @@
-# 🚀 Scrapbook CLI
+# Scrapbook CLI
 
 A cyberpunk-inspired, terminal-based interface for your digital scrapbook. Dive into your memories, search through your digital artifacts, and relive your online adventures - all from the comfort of your command line.
 
@@ -6,34 +6,34 @@ A cyberpunk-inspired, terminal-based interface for your digital scrapbook. Dive 
 
 <img width="1902" alt="Screenshot 2024-07-07 at 10 32 44 PM" src="https://github.com/ejfox/scrapbook-cli/assets/530073/11378745-d0dd-4987-9076-470180a1a1d3">
 
-## 🌟 Features
+## Features
 
 ### Interactive TUI Mode
-- 📚 Browse your entire scrapbook collection
-- 🔍 Fuzzy search with fzf integration
-- 🖥️ Slick, cyberpunk-themed UI
-- ⚡ Lightning-fast navigation
-- 🔗 Quick-copy links to clipboard
-- 🌐 Open entries directly in your browser
-- 📊 Visual type indicators for different entry sources
-- 🗺️ Mini-map view for entries with location data
-- 🌍 Full-screen map view of all geotagged entries
+- Browse your entire scrapbook collection
+- Fuzzy search with fzf integration
+- Slick, cyberpunk-themed UI
+- Lightning-fast navigation
+- Quick-copy links to clipboard
+- Open entries directly in your browser
+- Visual type indicators for different entry sources
+- Mini-map view for entries with location data
+- Full-screen map view of all geotagged entries
 
 ### CLI Mode (Unix-Friendly)
-- 📋 Multiple output formats: JSON, JSONL, TSV, CSV
-- 🔧 Field extraction for perfect piping
-- 🤖 AI-powered analysis with `llm` tool integration
-- 🔗 Composable with jq, fzf, grep, awk, curl
-- ⚡ Structured output for scripting and automation
-- 🎯 Search with reliable keyword matching
+- Multiple output formats: JSON, JSONL, TSV, CSV
+- Field extraction for perfect piping
+- AI-powered analysis with `llm` tool integration
+- Composable with jq, fzf, grep, awk, curl
+- Structured output for scripting and automation
+- Search with reliable keyword matching
 
-## 🛠️ Installation
+## Installation
 
 ```bash
 npm install -g scrapbook-cli
 ```
 
-## 🚀 Usage
+## Usage
 
 ### TUI Mode (Interactive)
 
@@ -96,7 +96,7 @@ scrapbook-cli get <scrap_id> --field title
 scrapbook-cli get <scrap_id> --field tags
 ```
 
-### 🔗 Piping with jq
+### Piping with jq
 
 ```bash
 # Get all titles
@@ -115,7 +115,7 @@ scrapbook-cli list --json | jq '.[] | select(.location != null) | {title, locati
 scrapbook-cli list --json | jq '.[].tags[]' | sort | uniq
 ```
 
-### 🤖 AI-Powered Analysis with `llm`
+### AI-Powered Analysis with `llm`
 
 ```bash
 # Categorize bookmarks
@@ -140,7 +140,7 @@ scrapbook-cli get <id2> | jq '.summary' > /tmp/b.txt
 cat /tmp/a.txt /tmp/b.txt | llm "Compare these two bookmarks. What are the connections?"
 ```
 
-### 🔧 Classic Unix Tools
+### Classic Unix Tools
 
 ```bash
 # Get URLs from TSV (8th column)
@@ -159,7 +159,7 @@ scrapbook-cli list --tsv | grep -i "kubernetes"
 scrapbook-cli list --json | jq -r '.[].url' | shuf -n 1
 ```
 
-### ⚡ Power User Workflows
+### Power User Workflows
 
 ```bash
 # Open random bookmark in browser
@@ -181,9 +181,9 @@ scrapbook-cli list --jsonl | \
   jq -r 'select(.created_at > "'$(date -v-7d +%Y-%m-%d)'") | .title'
 ```
 
-See [CLI-EXAMPLES.md](./CLI-EXAMPLES.md) for more advanced usage patterns!
+See [CLI-EXAMPLES.md](./CLI-EXAMPLES.md) for more advanced usage patterns.
 
-## 🔌 Power User Integrations
+## Power User Integrations
 
 scrapbook-cli integrates seamlessly with your power user workflow:
 
@@ -194,9 +194,9 @@ scrapbook-cli integrates seamlessly with your power user workflow:
 - **Shell keybindings**: Quick access with Ctrl+B
 - **Alfred/Raycast**: Search workflows
 
-See [INTEGRATIONS.md](./INTEGRATIONS.md) for detailed setup instructions!
+See [INTEGRATIONS.md](./INTEGRATIONS.md) for detailed setup instructions.
 
-### 🕹️ Controls (List Mode)
+### Controls (List Mode)
 
 - `↑/↓` or `j/k`: Navigate entries
 - `→`: Copy public URL to clipboard
@@ -209,24 +209,24 @@ See [INTEGRATIONS.md](./INTEGRATIONS.md) for detailed setup instructions!
 - `Esc`: Exit search or full-screen view
 - `q`: Quit
 
-### 🕹️ Controls (Map Mode)
+### Controls (Map Mode)
 
 - `↑/↓`: Navigate through map markers
 - `q`: Quit
 
-## 🗺️ Mini-Map Feature
+## Mini-Map Feature
 
 The mini-map displays the location of the currently selected entry if it has latitude and longitude data. If an entry doesn't have location data, the mini-map will be hidden.
 
-## 🌍 Full-Screen Map View
+## Full-Screen Map View
 
 The full-screen map view shows all your geotagged entries on a world map. Navigate through the markers to see details about each entry.
 
-## 📋 JSON Export
+## JSON Export
 
 Use the `json` command followed by a scrap ID to get the full JSON data for that specific scrap. This is useful for debugging or data export purposes.
 
-## 🔧 Configuration
+## Configuration
 
 Scrapbook CLI uses environment variables for configuration. Create a `.env` file in your home directory with the following:
 
@@ -235,16 +235,14 @@ SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-## 📜 License
+## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 Built with love, caffeine, and a dash of cyberpunk nostalgia. Special thanks to the creators of blessed, blessed-contrib, and Supabase for making this CLI possible.
-
-Remember, in the neon-lit world of digital scrapbooking, you're the protagonist of your own cyberpunk story. Happy scrapping! 🌆💾
