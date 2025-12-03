@@ -5,7 +5,7 @@
  * Simple flow:
  * 1. Fetch auto-captions with yt-dlp (fast, no download)
  * 2. Parse VTT to clean text
- * 3. Generate summary with llm
+ * 3. Generate summary with Anthropic API
  * 4. Update database
  */
 
@@ -14,6 +14,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import Anthropic from '@anthropic-ai/sdk';
 import dotenv from 'dotenv';
 import config from './config.js';
 
@@ -22,6 +23,10 @@ dotenv.config();
 const supabaseUrl = config.database?.supabase_url || process.env.SUPABASE_URL;
 const supabaseKey = config.database?.supabase_key || process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'youtube-enrich-'));
 
@@ -57,7 +62,7 @@ function parseVTT(vttContent) {
 }
 
 /**
- * Fetch captions for a video
+ * Fetch captions for a video with timeout
  */
 async function fetchCaptions(url, videoId) {
   const outputTemplate = path.join(tempDir, `${videoId}.%(ext)s`);
@@ -73,6 +78,15 @@ async function fetchCaptions(url, videoId) {
     ]);
 
     let hasError = false;
+    let finished = false;
+
+    // 30 second timeout
+    const timeout = setTimeout(() => {
+      if (!finished) {
+        ytdlp.kill();
+        resolve(null);
+      }
+    }, 30000);
 
     ytdlp.stderr.on('data', (data) => {
       const msg = data.toString();
@@ -82,6 +96,9 @@ async function fetchCaptions(url, videoId) {
     });
 
     ytdlp.on('close', (code) => {
+      finished = true;
+      clearTimeout(timeout);
+
       if (hasError || code !== 0) {
         resolve(null); // No captions available
       } else {
@@ -102,7 +119,7 @@ async function fetchCaptions(url, videoId) {
 }
 
 /**
- * Generate summary with llm
+ * Generate summary with Claude (Anthropic API)
  */
 async function generateSummary(text, title) {
   const prompt = `Summarize this YouTube video transcript. Focus on key concepts, techniques, and main points. Keep it concise (3-5 paragraphs).
@@ -110,30 +127,18 @@ async function generateSummary(text, title) {
 Title: ${title}
 
 Transcript:
-${text.substring(0, 4000)}`; // Limit to avoid token limits and speed up
+${text.substring(0, 8000)}`; // Using more context with faster API
 
-  return new Promise((resolve, reject) => {
-    const llm = spawn('llm', ['-m', 'gemini-2.5-flash', '-s', prompt]);
-
-    let output = '';
-    let errorOutput = '';
-
-    llm.stdout.on('data', (data) => {
-      output += data.toString();
-    });
-
-    llm.stderr.on('data', (data) => {
-      errorOutput += data.toString();
-    });
-
-    llm.on('close', (code) => {
-      if (code === 0) {
-        resolve(output.trim());
-      } else {
-        reject(new Error(`llm failed: ${errorOutput}`));
-      }
-    });
+  const message = await anthropic.messages.create({
+    model: 'claude-3-5-haiku-20241022',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: prompt
+    }]
   });
+
+  return message.content[0].text;
 }
 
 /**
@@ -189,7 +194,7 @@ async function enrichVideos(options = {}) {
       console.log(`    📝 Got ${transcript.length} chars of transcript`);
 
       // Generate summary
-      console.log('    🤖 Generating summary with llm...');
+      console.log('    🤖 Generating summary with Claude Haiku...');
       const summary = await generateSummary(transcript, video.title);
 
       // Update database
