@@ -204,7 +204,10 @@ export function openInEditor(scrap, screen) {
           if (scrap.relationships && scrap.relationships.length > 0) {
             sections.push('## Relationships', '');
             scrap.relationships.forEach(rel => {
-              sections.push(`- **${rel.source}** ${rel.relationship} **${rel.target}**`);
+              const source = rel.source || '[unknown]';
+              const relationship = rel.relationship || '[unknown relationship]';
+              const target = rel.target || '[unknown]';
+              sections.push(`- **${source}** ${relationship} **${target}**`);
             });
             sections.push('');
           }
