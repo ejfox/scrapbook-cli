@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { loadBookmarks, displayScrapJson, searchBookmarks } from "./database.js";
+import { loadBookmarks, displayScrapJson, searchBookmarks, queryByEntity } from "./database.js";
 import { loadConfig } from "./config.js";
 import blessed from "blessed";
 import { createUI, setupKeyboardShortcuts, displayHelp } from "./tui.js";
@@ -338,6 +338,46 @@ program
   .action(async (scrap_id, options) => {
     loadConfig({ silent: true });
     await displayScrapJson(scrap_id, options);
+  });
+
+// Entity graph queries
+program
+  .command("entity <name>")
+  .description("Query knowledge graph by entity name")
+  .option("--json", "Output full data as JSON")
+  .option("--graph", "Output graph structure only")
+  .option("--connections", "Show connections only")
+  .action(async (name, options) => {
+    loadConfig({ silent: true });
+    try {
+      const result = await queryByEntity(name);
+
+      if (options.graph) {
+        console.log(JSON.stringify(result.graph, null, 2));
+      } else if (options.connections) {
+        console.log(JSON.stringify(result.connections, null, 2));
+      } else if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        // Human-readable output
+        console.log(`\nEntity: ${result.query}`);
+        console.log(`Found in ${result.total_scraps} scraps\n`);
+
+        if (result.connections.length > 0) {
+          console.log('Connected entities:');
+          result.connections.forEach(conn => {
+            const arrow = conn.direction === 'outgoing' ? '→' : '←';
+            console.log(`  ${arrow} ${conn.entity}`);
+            console.log(`     ${conn.relationship} (${conn.count}x)`);
+          });
+        }
+
+        console.log(`\nUse --json to see full data, --graph for graph structure`);
+      }
+    } catch (error) {
+      console.error('Error querying entity:', error.message);
+      process.exit(1);
+    }
   });
 
 // Legacy json command (kept for backwards compatibility)

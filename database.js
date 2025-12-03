@@ -383,6 +383,112 @@ export function generateMetaSummary(scrap) {
   return summary || "No summary available";
 }
 
+/**
+ * Query scraps by entity name (with fuzzy matching)
+ * Finds all scraps where entity appears in relationships
+ */
+export async function queryByEntity(entityName, options = {}) {
+  const tableName = config.database?.table || "scraps";
+  const selectFields = config.database?.default_select ||
+    "scrap_id,id,created_at,updated_at,source,content,url,title,tags,summary,meta_summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis";
+
+  try {
+    const { data, error } = await supabase
+      .from(tableName)
+      .select(selectFields)
+      .not('relationships', 'is', null);
+
+    if (error) throw error;
+
+    // Filter scraps that mention the entity (fuzzy matching)
+    const normalizedQuery = entityName.toLowerCase().trim();
+
+    const matchingScraps = data.filter(scrap => {
+      if (!scrap.relationships || !Array.isArray(scrap.relationships)) return false;
+
+      return scrap.relationships.some(rel => {
+        const source = String(rel.source || '').toLowerCase();
+        const target = String(rel.target || '').toLowerCase();
+
+        // Fuzzy match: contains the entity name or vice versa
+        return source.includes(normalizedQuery) ||
+               normalizedQuery.includes(source) ||
+               target.includes(normalizedQuery) ||
+               normalizedQuery.includes(target);
+      });
+    });
+
+    // Build entity graph - who's connected to this entity
+    const entityGraph = {};
+    const connectedScraps = new Map();
+
+    matchingScraps.forEach(scrap => {
+      scrap.relationships.forEach(rel => {
+        const source = String(rel.source || '').toLowerCase();
+        const target = String(rel.target || '').toLowerCase();
+        const isSource = source.includes(normalizedQuery) || normalizedQuery.includes(source);
+        const isTarget = target.includes(normalizedQuery) || normalizedQuery.includes(target);
+
+        if (isSource || isTarget) {
+          const connectedEntity = isSource ? rel.target : rel.source;
+          const relationship = rel.relationship || 'RELATED_TO';
+          const direction = isSource ? 'outgoing' : 'incoming';
+
+          const key = `${connectedEntity}:${relationship}:${direction}`;
+
+          if (!entityGraph[key]) {
+            entityGraph[key] = {
+              entity: connectedEntity,
+              relationship: relationship,
+              direction: direction,
+              count: 0,
+              scraps: []
+            };
+          }
+
+          entityGraph[key].count++;
+          entityGraph[key].scraps.push(scrap.scrap_id);
+
+          if (!connectedScraps.has(scrap.scrap_id)) {
+            connectedScraps.set(scrap.scrap_id, scrap);
+          }
+        }
+      });
+    });
+
+    // Convert graph to sorted array
+    const connections = Object.values(entityGraph)
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      query: entityName,
+      total_scraps: matchingScraps.length,
+      scraps: Array.from(connectedScraps.values()),
+      connections: connections,
+      graph: {
+        nodes: [
+          { id: entityName, type: 'query', count: matchingScraps.length },
+          ...connections.map(c => ({
+            id: c.entity,
+            type: 'connected',
+            count: c.count
+          }))
+        ],
+        edges: connections.map(c => ({
+          source: c.direction === 'outgoing' ? entityName : c.entity,
+          target: c.direction === 'outgoing' ? c.entity : entityName,
+          relationship: c.relationship,
+          count: c.count
+        }))
+      }
+    };
+
+  } catch (error) {
+    console.error("Error querying by entity:", error);
+    throw error;
+  }
+}
+
 export async function displayScrapJson(scrap_id, options = {}) {
   const tableName = config.database?.table || "scraps";
 

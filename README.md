@@ -26,6 +26,7 @@ A cyberpunk-inspired, terminal-based interface for your digital scrapbook. Dive 
 - Composable with jq, fzf, grep, awk, curl
 - Structured output for scripting and automation
 - Search with reliable keyword matching
+- Knowledge graph queries by entity with fuzzy matching
 
 ## Installation
 
@@ -94,6 +95,22 @@ scrapbook-cli get <scrap_id>
 scrapbook-cli get <scrap_id> --field url
 scrapbook-cli get <scrap_id> --field title
 scrapbook-cli get <scrap_id> --field tags
+```
+
+#### Query knowledge graph by entity
+
+```bash
+# Find all scraps mentioning an entity (with fuzzy matching)
+scrapbook-cli entity "Senator James Skoufis"
+
+# Output connections as JSON
+scrapbook-cli entity "New York Attorney General" --connections
+
+# Output graph structure
+scrapbook-cli entity "Skoufis" --graph
+
+# Full data output
+scrapbook-cli entity "Skoufis" --json
 ```
 
 ### Piping with jq
