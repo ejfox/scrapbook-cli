@@ -150,25 +150,82 @@ export function openInEditor(scrap, screen) {
           const tmpDir = os.tmpdir();
           const tmpFile = path.join(tmpDir, `scrapbook-${scrap.scrap_id}.md`);
 
-          // Format scrap content as markdown
-          const content = [
+          // Format scrap content as markdown with ALL data
+          const sections = [
             `# ${scrap.title || '[no title]'}`,
             '',
+            '## Metadata',
+            '',
+            `**Scrap ID:** ${scrap.scrap_id || 'N/A'}`,
             `**URL:** ${scrap.url || 'N/A'}`,
+            `**Public URL:** ${scrap.public_url || 'N/A'}`,
             `**Source:** ${scrap.source || 'N/A'}`,
-            `**Created:** ${scrap.created_at}`,
-            `**Tags:** ${scrap.tags?.join(', ') || 'none'}`,
+            `**Type:** ${scrap.type || 'N/A'}`,
+            `**Content Type:** ${scrap.content_type || 'N/A'}`,
+            `**Created:** ${scrap.created_at || 'N/A'}`,
+            `**Updated:** ${scrap.updated_at || 'N/A'}`,
+            `**Published:** ${scrap.published_at || 'N/A'}`,
+            `**Shared:** ${scrap.shared ? 'Yes' : 'No'}`,
             '',
-            '---',
-            '',
-            '## Summary',
-            '',
-            scrap.summary || 'No summary available',
-            '',
-            '## Content',
-            '',
-            scrap.content || 'No content available',
-          ].join('\n');
+          ];
+
+          // Tags
+          if (scrap.tags && scrap.tags.length > 0) {
+            sections.push('## Tags', '', scrap.tags.map(t => `- ${t}`).join('\n'), '');
+          }
+
+          // Concept Tags
+          if (scrap.concept_tags && scrap.concept_tags.length > 0) {
+            sections.push('## Concept Tags', '', scrap.concept_tags.map(t => `- ${t}`).join('\n'), '');
+          }
+
+          // Location
+          if (scrap.location || scrap.latitude || scrap.longitude) {
+            sections.push('## Location', '');
+            if (scrap.location) sections.push(`**Place:** ${scrap.location}`);
+            if (scrap.latitude && scrap.longitude) {
+              sections.push(`**Coordinates:** ${scrap.latitude}, ${scrap.longitude}`);
+              sections.push(`**Map:** https://www.openstreetmap.org/?mlat=${scrap.latitude}&mlon=${scrap.longitude}&zoom=12`);
+            }
+            sections.push('');
+          }
+
+          // Summary
+          sections.push('## Summary', '', scrap.summary || 'No summary available', '');
+
+          // Relationships
+          if (scrap.relationships && scrap.relationships.length > 0) {
+            sections.push('## Relationships', '');
+            scrap.relationships.forEach(rel => {
+              sections.push(`- **${rel.source}** ${rel.relationship} **${rel.target}**`);
+            });
+            sections.push('');
+          }
+
+          // Financial Analysis
+          if (scrap.financial_analysis) {
+            sections.push('## Financial Analysis', '', '```json', JSON.stringify(scrap.financial_analysis, null, 2), '```', '');
+          }
+
+          // Extraction Confidence
+          if (scrap.extraction_confidence) {
+            sections.push('## Extraction Confidence', '', '```json', JSON.stringify(scrap.extraction_confidence, null, 2), '```', '');
+          }
+
+          // Metadata (original source metadata)
+          if (scrap.metadata) {
+            sections.push('## Source Metadata', '', '```json', JSON.stringify(scrap.metadata, null, 2), '```', '');
+          }
+
+          // Screenshot
+          if (scrap.screenshot_url) {
+            sections.push('## Screenshot', '', `![Screenshot](${scrap.screenshot_url})`, '');
+          }
+
+          // Main Content (at the end so it doesn't push other data down)
+          sections.push('---', '', '## Full Content', '', scrap.content || 'No content available');
+
+          const content = sections.join('\n');
 
           // Write temp file
           fs.writeFileSync(tmpFile, content);
