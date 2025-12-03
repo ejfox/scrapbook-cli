@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2025-12-03
+
+### Changed
+
+- **Repository Organization**: Reorganized project structure for clarity
+  - Moved all documentation to `docs/` directory
+  - Moved all integration examples to `examples/` directory
+  - Removed backup and system files
+- **File Naming**: Renamed core files with more descriptive names
+  - `data.js` → `database.js` (database operations)
+  - `ui.js` → `tui.js` (Terminal User Interface)
+  - `config-cli.js` → `config-tool.js` (CLI configuration tool)
+  - `theme-loader.js` → `themes.js` (theme system)
+- **Documentation**: Removed emoji for clean Unix-style aesthetic
+  - Updated README.md with simple, professional formatting
+  - Maintained all technical content and examples
+
+### Technical
+
+- Updated all import statements across the codebase
+- Verified all CLI commands work correctly after refactoring
+- No breaking changes to API or functionality
+
+---
+
 ## [2.0.0] - 2025-12-03
 
 ### 🎉 Major Release: Unix-Friendly CLI Mode
