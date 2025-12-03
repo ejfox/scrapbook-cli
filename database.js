@@ -407,14 +407,14 @@ export async function queryByEntity(entityName, options = {}) {
       if (!scrap.relationships || !Array.isArray(scrap.relationships)) return false;
 
       return scrap.relationships.some(rel => {
-        const source = String(rel.source || '').toLowerCase();
-        const target = String(rel.target || '').toLowerCase();
+        const source = String(rel.source || '').toLowerCase().trim();
+        const target = String(rel.target || '').toLowerCase().trim();
 
-        // Fuzzy match: contains the entity name or vice versa
-        return source.includes(normalizedQuery) ||
-               normalizedQuery.includes(source) ||
-               target.includes(normalizedQuery) ||
-               normalizedQuery.includes(target);
+        // Skip empty entities
+        if (!source || !target) return false;
+
+        // Match if entity contains query (one-directional for accuracy)
+        return source.includes(normalizedQuery) || target.includes(normalizedQuery);
       });
     });
 
@@ -431,6 +431,12 @@ export async function queryByEntity(entityName, options = {}) {
 
         if (isSource || isTarget) {
           const connectedEntity = isSource ? rel.target : rel.source;
+
+          // Skip if connected entity is null/undefined/empty
+          if (!connectedEntity || String(connectedEntity).trim() === '') {
+            return;
+          }
+
           const relationship = rel.relationship || 'RELATED_TO';
           const direction = isSource ? 'outgoing' : 'incoming';
 
