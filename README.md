@@ -8,8 +8,9 @@ A cyberpunk-inspired, terminal-based interface for your digital scrapbook. Dive 
 
 ## 🌟 Features
 
+### Interactive TUI Mode
 - 📚 Browse your entire scrapbook collection
-- 🔍 Full-text search across all entries
+- 🔍 Fuzzy search with fzf integration
 - 🖥️ Slick, cyberpunk-themed UI
 - ⚡ Lightning-fast navigation
 - 🔗 Quick-copy links to clipboard
@@ -17,7 +18,14 @@ A cyberpunk-inspired, terminal-based interface for your digital scrapbook. Dive 
 - 📊 Visual type indicators for different entry sources
 - 🗺️ Mini-map view for entries with location data
 - 🌍 Full-screen map view of all geotagged entries
-- 📋 JSON export for individual scraps
+
+### CLI Mode (Unix-Friendly)
+- 📋 Multiple output formats: JSON, JSONL, TSV, CSV
+- 🔧 Field extraction for perfect piping
+- 🤖 AI-powered analysis with `llm` tool integration
+- 🔗 Composable with jq, fzf, grep, awk, curl
+- ⚡ Structured output for scripting and automation
+- 🎯 Search with reliable keyword matching
 
 ## 🛠️ Installation
 
@@ -27,23 +35,153 @@ npm install -g scrapbook-cli
 
 ## 🚀 Usage
 
-To launch the Scrapbook CLI in list mode:
+### TUI Mode (Interactive)
+
+Launch the interactive TUI (default):
 
 ```bash
-scrapbook-cli list
+scrapbook-cli
+# or explicitly
+scrapbook-cli ui
 ```
 
-To view the full-screen map of all geotagged entries:
+View the full-screen map of all geotagged entries:
 
 ```bash
 scrapbook-cli --map
 ```
 
-To get JSON data for a specific scrap:
+### CLI Mode (Unix-Friendly)
+
+scrapbook-cli is designed as a good Unix citizen, outputting structured data that pipes perfectly with tools like `jq`, `fzf`, `llm`, and standard commands.
+
+#### List bookmarks
 
 ```bash
-scrapbook-cli json <scrap_id>
+# JSON (pretty-printed, default)
+scrapbook-cli list --json
+
+# JSON Lines (one per line, great for streaming)
+scrapbook-cli list --jsonl
+
+# TSV (tab-separated, easy to parse)
+scrapbook-cli list --tsv
+
+# CSV
+scrapbook-cli list --csv
+
+# Limit results
+scrapbook-cli list --json --limit 10
 ```
+
+#### Search bookmarks
+
+```bash
+# Search with JSON output
+scrapbook-cli search "election" --json
+
+# Search with TSV
+scrapbook-cli search "kubernetes" --tsv
+```
+
+#### Get specific bookmark
+
+```bash
+# Get full bookmark JSON
+scrapbook-cli get <scrap_id>
+
+# Extract specific field (perfect for piping)
+scrapbook-cli get <scrap_id> --field url
+scrapbook-cli get <scrap_id> --field title
+scrapbook-cli get <scrap_id> --field tags
+```
+
+### 🔗 Piping with jq
+
+```bash
+# Get all titles
+scrapbook-cli list --json | jq -r '.[].title'
+
+# Get URLs from pinboard bookmarks
+scrapbook-cli list --json | jq '.[] | select(.source == "pinboard") | .url'
+
+# Count bookmarks by source
+scrapbook-cli list --json | jq 'group_by(.source) | map({source: .[0].source, count: length})'
+
+# Get bookmarks with locations
+scrapbook-cli list --json | jq '.[] | select(.location != null) | {title, location, url}'
+
+# Extract tags
+scrapbook-cli list --json | jq '.[].tags[]' | sort | uniq
+```
+
+### 🤖 AI-Powered Analysis with `llm`
+
+```bash
+# Categorize bookmarks
+scrapbook-cli list --json --limit 10 | jq -r '.[].title' | \
+  llm -m gpt-4o-mini "Categorize these into 3-5 topic groups"
+
+# Generate summary of recent bookmarks
+scrapbook-cli list --json --limit 5 | jq -r '.[].summary' | \
+  llm -m gpt-4o-mini "Create a brief digest of these bookmarks"
+
+# Extract key themes
+scrapbook-cli search "technology" --json | jq -r '.[].content' | \
+  llm -m gpt-4o-mini "What are the main themes in these tech bookmarks?"
+
+# Generate tags for untagged bookmarks
+scrapbook-cli list --json | jq '.[] | select(.tags | length == 0) | .content' | \
+  llm -m gpt-4o-mini "Suggest 3-5 tags for this content" -s "Output only tags, comma separated"
+
+# Compare bookmarks
+scrapbook-cli get <id1> | jq '.summary' > /tmp/a.txt
+scrapbook-cli get <id2> | jq '.summary' > /tmp/b.txt
+cat /tmp/a.txt /tmp/b.txt | llm "Compare these two bookmarks. What are the connections?"
+```
+
+### 🔧 Classic Unix Tools
+
+```bash
+# Get URLs from TSV (8th column)
+scrapbook-cli list --tsv | cut -f8 | tail -n +2
+
+# Filter by source with awk
+scrapbook-cli list --tsv | awk -F'\t' '$6 == "pinboard"'
+
+# Count by source
+scrapbook-cli list --tsv | cut -f6 | sort | uniq -c | sort -rn
+
+# Search with grep
+scrapbook-cli list --tsv | grep -i "kubernetes"
+
+# Get a random bookmark URL
+scrapbook-cli list --json | jq -r '.[].url' | shuf -n 1
+```
+
+### ⚡ Power User Workflows
+
+```bash
+# Open random bookmark in browser
+scrapbook-cli list --json | jq -r '.[].url' | shuf -n 1 | xargs open
+
+# Build a reading list
+scrapbook-cli search "article" --json | \
+  jq -r '.[] | "- [\(.title)](\(.url))"' > reading-list.md
+
+# Export to CSV for spreadsheet analysis
+scrapbook-cli list --csv > bookmarks.csv
+
+# Chain search -> filter -> extract -> open
+scrapbook-cli search "tent camping" --json | \
+  jq -r '.[] | select(.tags | contains(["outdoor"])) | .url' | head -1 | xargs open
+
+# Find bookmarks from last week
+scrapbook-cli list --jsonl | \
+  jq -r 'select(.created_at > "'$(date -v-7d +%Y-%m-%d)'") | .title'
+```
+
+See [CLI-EXAMPLES.md](./CLI-EXAMPLES.md) for more advanced usage patterns!
 
 ### 🕹️ Controls (List Mode)
 
