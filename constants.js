@@ -7,7 +7,7 @@ export const SCRAP_TYPE_SYMBOLS = {
   video: "🎥",
   audio: "🎵",
   document: "📋",
-  default: "📝"
+  default: "📝",
 };
 
 export const COLOR_PALETTE = [
@@ -20,16 +20,10 @@ export const COLOR_PALETTE = [
   "#FF4000", // Red
   "#80FF00", // Lime
   "#4000FF", // Indigo
-  "#FF0040"  // Magenta
+  "#FF0040", // Magenta
 ];
 
-export const VIEW_HEADERS = [
-  "created_at",
-  "source",
-  "content",
-  "tags",
-  "summary"
-];
+export const VIEW_HEADERS = ["created_at", "source", "content", "tags", "summary"];
 
 export const ALL_HEADERS = [
   "scrap_id",
@@ -44,5 +38,5 @@ export const ALL_HEADERS = [
   "relationships",
   "location",
   "financial_analysis",
-  "metadata"
+  "metadata",
 ];

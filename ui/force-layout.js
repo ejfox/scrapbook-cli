@@ -1,10 +1,14 @@
 import blessed from "blessed";
-import contrib from "blessed-contrib";
 import { stripMarkdown, formatTags } from "../data.js";
 
-export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = null, onClose = null) {
+export function createForceLayoutView(
+  bookmarks,
+  parentScreen,
+  focusBookmark = null,
+  onClose = null
+) {
   const title = focusBookmark
-    ? `Force Layout - ${focusBookmark.title?.substring(0, 40) || 'Current Bookmark'} Relationships`
+    ? `Force Layout - ${focusBookmark.title?.substring(0, 40) || "Current Bookmark"} Relationships`
     : "Scrapbook Force Layout - Relationship Graph";
 
   // Create a fullscreen container on the parent screen instead of a new screen
@@ -12,32 +16,28 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     parent: parentScreen,
     top: 0,
     left: 0,
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     label: title,
-    border: 'line',
+    border: "line",
     style: {
-      border: { fg: 'cyan' },
-      bg: 'black'
-    }
+      border: { fg: "cyan" },
+      bg: "black",
+    },
   });
-
-  // Ensure valid terminal dimensions
-  const terminalWidth = parentScreen.width || process.stdout.columns || 80;
-  const terminalHeight = parentScreen.height || process.stdout.rows || 24;
 
   // Create main graph area as a child of container
   const graphBox = blessed.box({
     parent: container,
     top: 1,
     left: 1,
-    width: '98%',
-    height: '80%',
+    width: "98%",
+    height: "80%",
     label: "Relationship Force Graph",
     border: "line",
     style: {
-      border: { fg: "cyan" }
-    }
+      border: { fg: "cyan" },
+    },
   });
 
   // Info panel
@@ -46,8 +46,8 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     parent: container,
     bottom: 0,
     left: 1,
-    width: '98%',
-    height: '18%',
+    width: "98%",
+    height: "18%",
     label: infoLabel,
     content: "Press F to start force simulation\nArrow keys to navigate\nQ or ESC to exit",
     border: "line",
@@ -55,8 +55,8 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     keys: true,
     vi: true,
     style: {
-      border: { fg: "green" }
-    }
+      border: { fg: "green" },
+    },
   });
 
   // Extract nodes and links from bookmarks with relationships
@@ -76,46 +76,46 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
       y: 12,
       vx: 0,
       vy: 0,
-      isCentral: true
+      isCentral: true,
     });
 
     // Add relationships from the focus bookmark
     if (focusBookmark.relationships && Array.isArray(focusBookmark.relationships)) {
-      focusBookmark.relationships.forEach(rel => {
+      focusBookmark.relationships.forEach((rel) => {
         // Skip empty relationship objects
-        if (!rel || typeof rel !== 'object' || Object.keys(rel).length === 0) return;
+        if (!rel || typeof rel !== "object" || Object.keys(rel).length === 0) return;
 
         // Handle both old and new schema formats
         const targetName = rel.target?.name || rel.target;
-        const relType = rel.type || rel.relationship || 'RELATED_TO';
+        const relType = rel.type || rel.relationship || "RELATED_TO";
 
         // Skip if no valid target name
         if (!targetName) return;
 
         // Create target node
-        const targetId = `node_${String(targetName).replace(/\s+/g, '_')}`;
+        const targetId = `node_${String(targetName).replace(/\s+/g, "_")}`;
         if (!nodes.has(targetId)) {
           nodes.set(targetId, {
             id: targetId,
             name: String(targetName),
-            source: 'relationship',
+            source: "relationship",
             x: Math.random() * 60 + 5,
             y: Math.random() * 20 + 2,
             vx: 0,
-            vy: 0
+            vy: 0,
           });
         }
 
         links.push({
           source: centralNodeId,
           target: targetId,
-          type: relType
+          type: relType,
         });
       });
     }
   } else {
     // Fallback: add all bookmarks as potential nodes (original behavior)
-    bookmarks.forEach(bookmark => {
+    bookmarks.forEach((bookmark) => {
       const nodeId = bookmark.scrap_id || bookmark.id;
       if (!nodes.has(nodeId)) {
         nodes.set(nodeId, {
@@ -126,21 +126,21 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
           x: Math.random() * 60 + 5,
           y: Math.random() * 20 + 2,
           vx: 0,
-          vy: 0
+          vy: 0,
         });
       }
     });
 
     // Add relationships as links (original behavior)
-    bookmarks.forEach(bookmark => {
+    bookmarks.forEach((bookmark) => {
       if (bookmark.relationships && Array.isArray(bookmark.relationships)) {
-        bookmark.relationships.forEach(rel => {
+        bookmark.relationships.forEach((rel) => {
           // Skip empty relationship objects
-          if (!rel || typeof rel !== 'object' || Object.keys(rel).length === 0) return;
+          if (!rel || typeof rel !== "object" || Object.keys(rel).length === 0) return;
 
           const sourceId = bookmark.scrap_id || bookmark.id;
           const targetName = rel.target?.name || rel.target;
-          const relType = rel.type || rel.relationship || 'RELATED_TO';
+          const relType = rel.type || rel.relationship || "RELATED_TO";
 
           if (!targetName) return;
 
@@ -154,22 +154,22 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
           }
 
           if (!targetId) {
-            targetId = `node_${String(targetName).replace(/\s+/g, '_')}`;
+            targetId = `node_${String(targetName).replace(/\s+/g, "_")}`;
             nodes.set(targetId, {
               id: targetId,
               name: String(targetName),
-              source: 'relationship',
+              source: "relationship",
               x: Math.random() * 60 + 5,
               y: Math.random() * 20 + 2,
               vx: 0,
-              vy: 0
+              vy: 0,
             });
           }
 
           links.push({
             source: sourceId,
             target: targetId,
-            type: relType
+            type: relType,
           });
         });
       }
@@ -186,18 +186,23 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     const height = graphBox.height - 2;
 
     // Create ASCII canvas
-    const canvas = Array(height).fill().map(() => Array(width).fill(' '));
+    const canvas = Array(height)
+      .fill()
+      .map(() => Array(width).fill(" "));
 
     // Draw links
-    links.forEach(link => {
+    links.forEach((link) => {
       const sourceNode = nodes.get(link.source);
       const targetNode = nodes.get(link.target);
 
       if (sourceNode && targetNode) {
-        drawLine(canvas,
-          Math.floor(sourceNode.x), Math.floor(sourceNode.y),
-          Math.floor(targetNode.x), Math.floor(targetNode.y),
-          '-'
+        drawLine(
+          canvas,
+          Math.floor(sourceNode.x),
+          Math.floor(sourceNode.y),
+          Math.floor(targetNode.x),
+          Math.floor(targetNode.y),
+          "-"
         );
       }
     });
@@ -210,11 +215,11 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
       if (x >= 0 && x < width && y >= 0 && y < height) {
         let char;
         if (node.isCentral) {
-          char = '◆'; // Diamond for central node
+          char = "◆"; // Diamond for central node
         } else if (index === selectedNodeIndex) {
-          char = '●'; // Filled circle for selected
+          char = "●"; // Filled circle for selected
         } else {
-          char = '○'; // Empty circle for others
+          char = "○"; // Empty circle for others
         }
         canvas[y][x] = char;
 
@@ -227,7 +232,7 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     });
 
     // Convert canvas to string
-    const content = canvas.map(row => row.join('')).join('\n');
+    const content = canvas.map((row) => row.join("")).join("\n");
     graphBox.setContent(content);
   }
 
@@ -238,18 +243,25 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     const sy = y0 < y1 ? 1 : -1;
     let err = dx - dy;
 
-    let x = x0, y = y0;
+    let x = x0,
+      y = y0;
 
     while (true) {
       if (x >= 0 && x < canvas[0].length && y >= 0 && y < canvas.length) {
-        if (canvas[y][x] === ' ') canvas[y][x] = char;
+        if (canvas[y][x] === " ") canvas[y][x] = char;
       }
 
       if (x === x1 && y === y1) break;
 
       const e2 = 2 * err;
-      if (e2 > -dy) { err -= dy; x += sx; }
-      if (e2 < dx) { err += dx; y += sy; }
+      if (e2 > -dy) {
+        err -= dy;
+        x += sx;
+      }
+      if (e2 < dx) {
+        err += dx;
+        y += sy;
+      }
     }
   }
 
@@ -258,7 +270,7 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     const height = graphBox.height - 2;
 
     // Apply forces
-    nodeArray.forEach(node => {
+    nodeArray.forEach((node) => {
       // Center force
       const centerX = width / 2;
       const centerY = height / 2;
@@ -266,7 +278,7 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
       node.vy += (centerY - node.y) * 0.001;
 
       // Repulsion between nodes
-      nodeArray.forEach(other => {
+      nodeArray.forEach((other) => {
         if (node !== other) {
           const dx = node.x - other.x;
           const dy = node.y - other.y;
@@ -279,7 +291,7 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     });
 
     // Apply link forces
-    links.forEach(link => {
+    links.forEach((link) => {
       const sourceNode = nodes.get(link.source);
       const targetNode = nodes.get(link.target);
 
@@ -301,7 +313,7 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     });
 
     // Update positions and apply damping
-    nodeArray.forEach(node => {
+    nodeArray.forEach((node) => {
       node.vx *= 0.9; // damping
       node.vy *= 0.9;
 
@@ -321,7 +333,7 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
 
     if (node.bookmark) {
       const bookmark = node.bookmark;
-      const rawContent = bookmark.content || bookmark.title || '';
+      const rawContent = bookmark.content || bookmark.title || "";
       const cleanContent = stripMarkdown(rawContent);
       info += `Content: ${cleanContent.substring(0, 100)}\n\n`;
       if (bookmark.tags) {
@@ -330,10 +342,10 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     }
 
     // Show connections
-    const connections = links.filter(l => l.source === node.id || l.target === node.id);
+    const connections = links.filter((l) => l.source === node.id || l.target === node.id);
     if (connections.length > 0) {
       info += `Connections (${connections.length}): \n`;
-      connections.slice(0, 5).forEach(conn => {
+      connections.slice(0, 5).forEach((conn) => {
         const other = conn.source === node.id ? conn.target : conn.source;
         const otherNode = nodes.get(other);
         info += `  ${conn.type} ${otherNode?.name || other}\n`;
@@ -353,10 +365,10 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     if (focusBookmark) {
       const relationshipCount = links.length;
       infoBox.setContent(
-        `Viewing relationships for:\n${focusBookmark.title?.substring(0, 50) || 'Current bookmark'}\n\n` +
-        `◆ Central node\n○ Related entities\n● Selected node\n\n` +
-        `Relationships: ${relationshipCount}\n\n` +
-        infoBox.getContent()
+        `Viewing relationships for:\n${focusBookmark.title?.substring(0, 50) || "Current bookmark"}\n\n` +
+          `◆ Central node\n○ Related entities\n● Selected node\n\n` +
+          `Relationships: ${relationshipCount}\n\n` +
+          infoBox.getContent()
       );
     }
   }
@@ -374,7 +386,9 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
       parentScreen.render();
     }, 100);
 
-    infoBox.setContent(`Force simulation running...\n\nNodes: ${nodeArray.length}\nLinks: ${links.length}\n\n${infoBox.getContent()}`);
+    infoBox.setContent(
+      `Force simulation running...\n\nNodes: ${nodeArray.length}\nLinks: ${links.length}\n\n${infoBox.getContent()}`
+    );
   }
 
   function stopAnimation() {
@@ -423,7 +437,7 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
 
   container.key(["space"], () => {
     // Randomize positions for new layout
-    nodeArray.forEach(node => {
+    nodeArray.forEach((node) => {
       node.x = Math.random() * (graphBox.width - 12) + 5;
       node.y = Math.random() * (graphBox.height - 4) + 2;
       node.vx = 0;
@@ -444,11 +458,13 @@ export function createForceLayoutView(bookmarks, parentScreen, focusBookmark = n
     if (focusBookmark) {
       infoBox.setContent(
         `No relationships found in this bookmark.\n\n` +
-        `Bookmark: ${focusBookmark.title?.substring(0, 50) || 'Current bookmark'}\n\n` +
-        `This bookmark doesn't have relationship data to visualize.`
+          `Bookmark: ${focusBookmark.title?.substring(0, 50) || "Current bookmark"}\n\n` +
+          `This bookmark doesn't have relationship data to visualize.`
       );
     } else {
-      infoBox.setContent(`No relationships found in bookmarks.\n\nTotal bookmarks: ${bookmarks.length}\n\nNeed 'relationships' field with graph data.`);
+      infoBox.setContent(
+        `No relationships found in bookmarks.\n\nTotal bookmarks: ${bookmarks.length}\n\nNeed 'relationships' field with graph data.`
+      );
     }
   }
 }

@@ -1,4 +1,4 @@
-import Joi from 'joi';
+import Joi from "joi";
 
 /**
  * Configuration schema for validation
@@ -9,29 +9,32 @@ const configSchema = Joi.object({
 
   // Theme configuration
   theme: Joi.object({
+    preset: Joi.string().optional(), // Theme preset name
     colors: Joi.object({
-      palette: Joi.array().items(Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/)).min(1),
+      palette: Joi.array()
+        .items(Joi.string().pattern(/^#[0-9A-Fa-f]{6}$/))
+        .min(1),
       borders: Joi.object({
         default: Joi.string(),
         focus: Joi.string(),
         selected: Joi.string(),
         alert: Joi.string(),
-        info: Joi.string()
+        info: Joi.string(),
       }),
       text: Joi.object({
         default: Joi.string(),
         highlight: Joi.string(),
         error: Joi.string(),
-        dim: Joi.string()
-      })
-    })
-  }),
+        dim: Joi.string(),
+      }),
+    }),
+  }).unknown(true), // Allow TOML theme sections like [manager], [preview], etc
 
-  // Symbols configuration
+  // Symbols configuration (allow empty strings for Nerd Font icons)
   symbols: Joi.object({
-    types: Joi.object().pattern(Joi.string(), Joi.string()),
-    ui: Joi.object().pattern(Joi.string(), Joi.string())
-  }),
+    types: Joi.object().unknown(true),
+    ui: Joi.object().unknown(true),
+  }).optional(),
 
   // Display configuration
   display: Joi.object({
@@ -41,13 +44,13 @@ const configSchema = Joi.object({
     column_widths: Joi.object({
       date: Joi.number().min(5).max(50),
       source: Joi.number().min(5).max(50),
-      content: Joi.number().min(20).max(90)
+      content: Joi.number().min(20).max(90),
     }),
     min_column_widths: Joi.object({
       date: Joi.number().min(5),
       source: Joi.number().min(5),
-      content: Joi.number().min(10)
-    })
+      content: Joi.number().min(10),
+    }),
   }),
 
   // Animation settings
@@ -55,14 +58,14 @@ const configSchema = Joi.object({
     summary: Joi.object({
       enabled: Joi.boolean(),
       duration: Joi.number().min(0).max(1000),
-      chunk_size: Joi.number().min(1).max(100)
+      chunk_size: Joi.number().min(1).max(100),
     }),
     force_layout: Joi.object({
       enabled: Joi.boolean(),
       tick_interval: Joi.number().min(10).max(1000),
       auto_start: Joi.boolean(),
-      auto_start_delay: Joi.number().min(0).max(10000)
-    })
+      auto_start_delay: Joi.number().min(0).max(10000),
+    }),
   }),
 
   // Physics configuration
@@ -72,30 +75,27 @@ const configSchema = Joi.object({
     link_distance: Joi.number().min(1).max(100),
     link_force: Joi.number().min(0).max(1),
     damping: Joi.number().min(0).max(1),
-    bounds_padding: Joi.number().min(0).max(50)
+    bounds_padding: Joi.number().min(0).max(50),
   }),
 
   // Keyboard shortcuts
   shortcuts: Joi.object().pattern(
     Joi.string(),
-    Joi.alternatives().try(
-      Joi.string(),
-      Joi.array().items(Joi.string())
-    )
+    Joi.alternatives().try(Joi.string(), Joi.array().items(Joi.string()))
   ),
 
   // Search configuration
   search: Joi.object({
     fields: Joi.array().items(Joi.string()),
-    type: Joi.string().valid('websearch', 'plain', 'regex'),
-    config: Joi.string()
+    type: Joi.string().valid("websearch", "plain", "regex"),
+    config: Joi.string(),
   }),
 
   // Layout configuration
   layout: Joi.object({
     grid: Joi.object({
       rows: Joi.number().min(6).max(24),
-      cols: Joi.number().min(6).max(24)
+      cols: Joi.number().min(6).max(24),
     }),
     panels: Joi.object().pattern(
       Joi.string(),
@@ -103,9 +103,9 @@ const configSchema = Joi.object({
         row: Joi.number().min(0),
         col: Joi.number().min(0),
         height: Joi.number().min(1),
-        width: Joi.number().min(1)
+        width: Joi.number().min(1),
       })
-    )
+    ),
   }),
 
   // External commands
@@ -113,14 +113,14 @@ const configSchema = Joi.object({
     open: Joi.object({
       darwin: Joi.string(),
       win32: Joi.string(),
-      linux: Joi.string()
+      linux: Joi.string(),
     }),
     clipboard: Joi.object({
       darwin: Joi.string(),
       win32: Joi.string(),
       linux: Joi.string(),
-      linux_fallback: Joi.string()
-    })
+      linux_fallback: Joi.string(),
+    }),
   }),
 
   // Database configuration
@@ -129,17 +129,17 @@ const configSchema = Joi.object({
     supabase_key: Joi.string().allow(null),
     table: Joi.string(),
     order_by: Joi.string(),
-    order_direction: Joi.string().valid('asc', 'desc'),
+    order_direction: Joi.string().valid("asc", "desc"),
     default_limit: Joi.number().min(1).max(10000),
     default_select: Joi.string(),
     search_columns: Joi.array().items(Joi.string()),
-    search_type: Joi.string().valid('websearch', 'plain', 'phrase'),
-    search_config: Joi.string()
+    search_type: Joi.string().valid("websearch", "plain", "phrase"),
+    search_config: Joi.string(),
   }),
 
   // URL templates
   urls: Joi.object({
-    public_base: Joi.string().uri()
+    public_base: Joi.string().uri(),
   }),
 
   // Miscellaneous
@@ -149,8 +149,8 @@ const configSchema = Joi.object({
     content_preview_length: Joi.number().min(10).max(500),
     relationship_preview_count: Joi.number().min(1).max(50),
     location_preview_length: Joi.number().min(10).max(200),
-    alert_timeout: Joi.number().min(100).max(30000)
-  })
+    alert_timeout: Joi.number().min(100).max(30000),
+  }),
 }).unknown(false);
 
 /**
@@ -161,24 +161,24 @@ const configSchema = Joi.object({
 export function validateConfig(config) {
   const result = configSchema.validate(config, {
     abortEarly: false,
-    allowUnknown: false
+    allowUnknown: false,
   });
 
   if (result.error) {
     return {
       valid: false,
-      errors: result.error.details.map(detail => ({
-        path: detail.path.join('.'),
-        message: detail.message
+      errors: result.error.details.map((detail) => ({
+        path: detail.path.join("."),
+        message: detail.message,
       })),
-      value: null
+      value: null,
     };
   }
 
   return {
     valid: true,
     errors: null,
-    value: result.value
+    value: result.value,
   };
 }
 
@@ -189,7 +189,7 @@ export function validateConfig(config) {
 export function getValidConfigKeys() {
   const keys = [];
 
-  function extractKeys(schema, prefix = '') {
+  function extractKeys(schema, prefix = "") {
     if (schema._ids && schema._ids._byKey) {
       for (const [key, value] of schema._ids._byKey) {
         const path = prefix ? `${prefix}.${key}` : key;
@@ -214,7 +214,7 @@ export function getValidConfigKeys() {
  * @returns {boolean}
  */
 export function isValidConfigValue(path, value) {
-  const pathParts = path.split('.');
+  const pathParts = path.split(".");
   let schema = configSchema;
 
   // Navigate to the correct schema part

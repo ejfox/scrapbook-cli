@@ -7,8 +7,8 @@ import { spawn } from "child_process";
  */
 export function openUrl(url) {
   return new Promise((resolve, reject) => {
-    if (!url || typeof url !== 'string') {
-      reject(new Error('Invalid URL'));
+    if (!url || typeof url !== "string") {
+      reject(new Error("Invalid URL"));
       return;
     }
 
@@ -17,24 +17,24 @@ export function openUrl(url) {
     let command;
     let args;
 
-    if (platform === 'darwin') {
-      command = 'open';
+    if (platform === "darwin") {
+      command = "open";
       args = [url];
-    } else if (platform === 'win32') {
-      command = 'cmd.exe';
-      args = ['/c', 'start', '""', url];
+    } else if (platform === "win32") {
+      command = "cmd.exe";
+      args = ["/c", "start", '""', url];
     } else {
       // Linux
-      command = 'xdg-open';
+      command = "xdg-open";
       args = [url];
     }
 
     const child = spawn(command, args, {
       detached: true,
-      stdio: 'ignore'
+      stdio: "ignore",
     });
 
-    child.on('error', reject);
+    child.on("error", reject);
     child.unref();
     resolve();
   });
@@ -47,8 +47,8 @@ export function openUrl(url) {
  */
 export function copyToClipboard(text) {
   return new Promise((resolve, reject) => {
-    if (!text || typeof text !== 'string') {
-      reject(new Error('Invalid text'));
+    if (!text || typeof text !== "string") {
+      reject(new Error("Invalid text"));
       return;
     }
 
@@ -56,34 +56,34 @@ export function copyToClipboard(text) {
     let command;
     let args;
 
-    if (platform === 'darwin') {
-      command = 'pbcopy';
+    if (platform === "darwin") {
+      command = "pbcopy";
       args = [];
-    } else if (platform === 'win32') {
-      command = 'clip';
+    } else if (platform === "win32") {
+      command = "clip";
       args = [];
     } else {
       // Linux - try xclip first, then xsel
-      command = 'xclip';
-      args = ['-selection', 'clipboard'];
+      command = "xclip";
+      args = ["-selection", "clipboard"];
     }
 
     const child = spawn(command, args);
 
-    child.on('error', (err) => {
-      if (platform === 'linux' && command === 'xclip') {
+    child.on("error", (err) => {
+      if (platform === "linux" && command === "xclip") {
         // Fallback to xsel on Linux if xclip fails
-        const fallbackChild = spawn('xsel', ['--clipboard', '--input']);
-        fallbackChild.on('error', reject);
+        const fallbackChild = spawn("xsel", ["--clipboard", "--input"]);
+        fallbackChild.on("error", reject);
         fallbackChild.stdin.write(text);
         fallbackChild.stdin.end();
-        fallbackChild.on('close', resolve);
+        fallbackChild.on("close", resolve);
       } else {
         reject(err);
       }
     });
 
-    child.on('close', resolve);
+    child.on("close", resolve);
 
     // Write the text to stdin
     child.stdin.write(text);

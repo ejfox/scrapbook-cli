@@ -1,10 +1,11 @@
-import yaml from 'js-yaml';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import os from 'os';
-import { validateConfig } from './validator.js';
-import chokidar from 'chokidar';
+import yaml from "js-yaml";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import os from "os";
+import { validateConfig } from "./validator.js";
+import { loadTheme } from "../theme-loader.js";
+import chokidar from "chokidar";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,12 +21,13 @@ let configChangeCallbacks = [];
 function deepMerge(target, source) {
   const output = Object.assign({}, target);
   if (isObject(target) && isObject(source)) {
-    Object.keys(source).forEach(key => {
+    Object.keys(source).forEach((key) => {
       if (isObject(source[key])) {
-        if (!(key in target))
+        if (!(key in target)) {
           Object.assign(output, { [key]: source[key] });
-        else
+        } else {
           output[key] = deepMerge(target[key], source[key]);
+        }
       } else {
         Object.assign(output, { [key]: source[key] });
       }
@@ -35,21 +37,21 @@ function deepMerge(target, source) {
 }
 
 function isObject(item) {
-  return item && typeof item === 'object' && !Array.isArray(item);
+  return item && typeof item === "object" && !Array.isArray(item);
 }
 
 /**
  * Load theme presets
  */
 function loadThemes() {
-  const themesPath = path.join(__dirname, 'themes.yaml');
+  const themesPath = path.join(__dirname, "themes.yaml");
   try {
     if (fs.existsSync(themesPath)) {
-      const themesData = yaml.load(fs.readFileSync(themesPath, 'utf8'));
+      const themesData = yaml.load(fs.readFileSync(themesPath, "utf8"));
       return themesData.themes || {};
     }
   } catch (error) {
-    console.error('Error loading themes:', error.message);
+    console.error("Error loading themes:", error.message);
   }
   return {};
 }
@@ -77,12 +79,7 @@ function applyThemePreset(config, themeName) {
  * Load configuration from all sources
  */
 export function loadConfig(options = {}) {
-  const {
-    validate = true,
-    silent = false,
-    theme = null,
-    reload = false
-  } = options;
+  const { validate = true, silent = false, theme = null, reload = false } = options;
 
   // Return cache if available and not reloading
   if (configCache && !reload) {
@@ -94,38 +91,38 @@ export function loadConfig(options = {}) {
 
   try {
     // 1. Load default config
-    const defaultConfigPath = path.join(path.dirname(__dirname), 'config.yaml');
+    const defaultConfigPath = path.join(path.dirname(__dirname), "config.yaml");
     if (fs.existsSync(defaultConfigPath)) {
-      const defaultConfig = yaml.load(fs.readFileSync(defaultConfigPath, 'utf8'));
+      const defaultConfig = yaml.load(fs.readFileSync(defaultConfigPath, "utf8"));
       config = deepMerge(config, defaultConfig);
-      configSources.push({ type: 'default', path: defaultConfigPath });
+      configSources.push({ type: "default", path: defaultConfigPath });
     }
 
     // 2. Check for environment-specific config
-    const env = process.env.NODE_ENV || 'development';
+    const env = process.env.NODE_ENV || "development";
     const envConfigPath = path.join(path.dirname(__dirname), `config.${env}.yaml`);
     if (fs.existsSync(envConfigPath)) {
-      const envConfig = yaml.load(fs.readFileSync(envConfigPath, 'utf8'));
+      const envConfig = yaml.load(fs.readFileSync(envConfigPath, "utf8"));
       config = deepMerge(config, envConfig);
-      configSources.push({ type: 'environment', path: envConfigPath });
+      configSources.push({ type: "environment", path: envConfigPath });
       if (!silent) console.log(`Loaded ${env} config from ${envConfigPath}`);
     }
 
     // 3. User config
-    const userConfigPath = path.join(os.homedir(), '.scrapbook', 'config.yaml');
+    const userConfigPath = path.join(os.homedir(), ".scrapbook", "config.yaml");
     if (fs.existsSync(userConfigPath)) {
-      const userConfig = yaml.load(fs.readFileSync(userConfigPath, 'utf8'));
+      const userConfig = yaml.load(fs.readFileSync(userConfigPath, "utf8"));
       config = deepMerge(config, userConfig);
-      configSources.push({ type: 'user', path: userConfigPath });
+      configSources.push({ type: "user", path: userConfigPath });
       if (!silent) console.log(`Loaded user config from ${userConfigPath}`);
     }
 
     // 4. Local project config
-    const localConfigPath = path.join(process.cwd(), '.scrapbook.yaml');
+    const localConfigPath = path.join(process.cwd(), ".scrapbook.yaml");
     if (fs.existsSync(localConfigPath)) {
-      const localConfig = yaml.load(fs.readFileSync(localConfigPath, 'utf8'));
+      const localConfig = yaml.load(fs.readFileSync(localConfigPath, "utf8"));
       config = deepMerge(config, localConfig);
-      configSources.push({ type: 'local', path: localConfigPath });
+      configSources.push({ type: "local", path: localConfigPath });
       if (!silent) console.log(`Loaded local config from ${localConfigPath}`);
     }
 
@@ -140,20 +137,21 @@ export function loadConfig(options = {}) {
     const envOverrides = getEnvOverrides();
     if (Object.keys(envOverrides).length > 0) {
       config = deepMerge(config, envOverrides);
-      if (!silent) console.log(`Applied ${Object.keys(envOverrides).length} environment variable overrides`);
+      if (!silent)
+        {console.log(`Applied ${Object.keys(envOverrides).length} environment variable overrides`);}
     }
 
     // Validate config if requested
     if (validate) {
       const validation = validateConfig(config);
       if (!validation.valid) {
-        console.error('Configuration validation errors:');
-        validation.errors.forEach(error => {
+        console.error("Configuration validation errors:");
+        validation.errors.forEach((error) => {
           console.error(`  - ${error.path}: ${error.message}`);
         });
 
         if (!silent) {
-          console.warn('Using configuration despite validation errors');
+          console.warn("Using configuration despite validation errors");
         }
       }
     }
@@ -163,9 +161,8 @@ export function loadConfig(options = {}) {
 
     // Store config sources for debugging
     config._sources = configSources;
-
   } catch (error) {
-    console.error('Error loading config:', error.message);
+    console.error("Error loading config:", error.message);
     config = getDefaultConfig();
   }
 
@@ -178,14 +175,11 @@ export function loadConfig(options = {}) {
  */
 function getEnvOverrides() {
   const overrides = {};
-  const prefix = 'SCRAPBOOK_';
+  const prefix = "SCRAPBOOK_";
 
-  Object.keys(process.env).forEach(key => {
+  Object.keys(process.env).forEach((key) => {
     if (key.startsWith(prefix)) {
-      const configPath = key
-        .substring(prefix.length)
-        .toLowerCase()
-        .replace(/_/g, '.');
+      const configPath = key.substring(prefix.length).toLowerCase().replace(/_/g, ".");
 
       const value = process.env[key];
       setNestedValue(overrides, configPath, parseEnvValue(value));
@@ -204,8 +198,8 @@ function parseEnvValue(value) {
     return JSON.parse(value);
   } catch {
     // Check for boolean
-    if (value === 'true') return true;
-    if (value === 'false') return false;
+    if (value === "true") return true;
+    if (value === "false") return false;
 
     // Check for number
     if (!isNaN(value) && !isNaN(parseFloat(value))) {
@@ -221,7 +215,7 @@ function parseEnvValue(value) {
  * Set a nested value in an object
  */
 function setNestedValue(obj, path, value) {
-  const parts = path.split('.');
+  const parts = path.split(".");
   let current = obj;
 
   for (let i = 0; i < parts.length - 1; i++) {
@@ -252,25 +246,43 @@ function getDefaultConfig() {
         video: "🎥",
         audio: "🎵",
         document: "📋",
-        default: "📝"
-      }
+        default: "📝",
+      },
     },
     theme: {
       colors: {
         palette: [
-          "#00FF00", "#FF0080", "#0080FF", "#FF8000", "#8000FF",
-          "#00FF80", "#FF4000", "#80FF00", "#4000FF", "#FF0040"
-        ]
-      }
+          "#00FF00",
+          "#FF0080",
+          "#0080FF",
+          "#FF8000",
+          "#8000FF",
+          "#00FF80",
+          "#FF4000",
+          "#80FF00",
+          "#4000FF",
+          "#FF0040",
+        ],
+      },
     },
     display: {
       view_headers: ["created_at", "source", "content", "tags", "summary"],
       all_headers: [
-        "scrap_id", "created_at", "updated_at", "source", "content",
-        "url", "title", "tags", "summary", "relationships", "location",
-        "financial_analysis", "metadata"
-      ]
-    }
+        "scrap_id",
+        "created_at",
+        "updated_at",
+        "source",
+        "content",
+        "url",
+        "title",
+        "tags",
+        "summary",
+        "relationships",
+        "location",
+        "financial_analysis",
+        "metadata",
+      ],
+    },
   };
 }
 
@@ -279,29 +291,29 @@ function getDefaultConfig() {
  */
 export function watchConfig(callback) {
   const paths = [
-    path.join(path.dirname(__dirname), 'config.yaml'),
-    path.join(os.homedir(), '.scrapbook', 'config.yaml'),
-    path.join(process.cwd(), '.scrapbook.yaml')
+    path.join(path.dirname(__dirname), "config.yaml"),
+    path.join(os.homedir(), ".scrapbook", "config.yaml"),
+    path.join(process.cwd(), ".scrapbook.yaml"),
   ];
 
   // Clear existing watchers
-  configWatchers.forEach(watcher => watcher.close());
+  configWatchers.forEach((watcher) => watcher.close());
   configWatchers = [];
 
-  paths.forEach(configPath => {
+  paths.forEach((configPath) => {
     if (fs.existsSync(configPath)) {
       const watcher = chokidar.watch(configPath, {
         persistent: true,
-        ignoreInitial: true
+        ignoreInitial: true,
       });
 
-      watcher.on('change', () => {
+      watcher.on("change", () => {
         console.log(`Config changed: ${configPath}`);
         configCache = null; // Clear cache
         const newConfig = loadConfig({ reload: true });
 
         // Call all registered callbacks
-        configChangeCallbacks.forEach(cb => cb(newConfig));
+        configChangeCallbacks.forEach((cb) => cb(newConfig));
 
         if (callback) callback(newConfig);
       });
@@ -317,9 +329,9 @@ export function watchConfig(callback) {
 
   return () => {
     // Return cleanup function
-    configWatchers.forEach(watcher => watcher.close());
+    configWatchers.forEach((watcher) => watcher.close());
     configWatchers = [];
-    configChangeCallbacks = configChangeCallbacks.filter(cb => cb !== callback);
+    configChangeCallbacks = configChangeCallbacks.filter((cb) => cb !== callback);
   };
 }
 
@@ -331,7 +343,7 @@ export function listThemes() {
   return Object.entries(themes).map(([key, theme]) => ({
     id: key,
     name: theme.name || key,
-    description: theme.description || 'No description'
+    description: theme.description || "No description",
   }));
 }
 
@@ -342,8 +354,8 @@ export function getConfigInfo() {
   const config = loadConfig();
   return {
     sources: config._sources || [],
-    theme: config.theme_preset || 'default',
-    validationErrors: validateConfig(config).errors || []
+    theme: config.theme_preset || "default",
+    validationErrors: validateConfig(config).errors || [],
   };
 }
 
@@ -354,6 +366,7 @@ const config = loadConfig({ silent: true });
 
 export default config;
 export const SCRAP_TYPE_SYMBOLS = config.symbols?.types || getDefaultConfig().symbols.types;
-export const COLOR_PALETTE = config.theme?.colors?.palette || getDefaultConfig().theme.colors.palette;
+export const COLOR_PALETTE =
+  config.theme?.colors?.palette || getDefaultConfig().theme.colors.palette;
 export const VIEW_HEADERS = config.display?.view_headers || getDefaultConfig().display.view_headers;
 export const ALL_HEADERS = config.display?.all_headers || getDefaultConfig().display.all_headers;

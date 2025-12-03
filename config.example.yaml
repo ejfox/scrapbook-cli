@@ -5,11 +5,11 @@
 theme:
   colors:
     palette:
-      - "#FF1493"  # Deep Pink
-      - "#00CED1"  # Dark Turquoise
-      - "#FFD700"  # Gold
-      - "#9370DB"  # Medium Purple
-      - "#FF6347"  # Tomato
+      - "#FF1493" # Deep Pink
+      - "#00CED1" # Dark Turquoise
+      - "#FFD700" # Gold
+      - "#9370DB" # Medium Purple
+      - "#FF6347" # Tomato
 
 # Example: Customize symbols
 symbols:
@@ -21,9 +21,9 @@ symbols:
 # Example: Change column widths
 display:
   column_widths:
-    date: 20      # Make date column wider
-    source: 10    # Make source column narrower
-    content: 70   # Content takes the rest
+    date: 20 # Make date column wider
+    source: 10 # Make source column narrower
+    content: 70 # Content takes the rest
 
 # Example: Disable animations
 animations:
@@ -32,13 +32,13 @@ animations:
 
 # Example: Customize keyboard shortcuts
 shortcuts:
-  open_detail: ["o", "enter"]  # Use 'o' instead of 'z'
-  search: ["f", "/"]          # Add 'f' for find
+  open_detail: ["o", "enter"] # Use 'o' instead of 'z'
+  search: ["f", "/"] # Add 'f' for find
 
 # Example: Change force layout physics
 physics:
-  repulsion_force: 10  # Stronger repulsion between nodes
-  damping: 0.95       # Less damping for smoother animation
+  repulsion_force: 10 # Stronger repulsion between nodes
+  damping: 0.95 # Less damping for smoother animation
 
 # Example: Configure Supabase and database
 # WARNING: For security, use environment variables for credentials
@@ -46,17 +46,18 @@ database:
   # supabase_url: "https://your-project.supabase.co"  # Better to use SUPABASE_URL env var
   # supabase_key: "your-anon-key"                      # Better to use SUPABASE_KEY env var
 
-  table: my_bookmarks        # Different table name
-  order_by: updated_at        # Order by different field
-  order_direction: asc        # Ascending order
-  default_limit: 500          # Limit results
+  table: my_bookmarks # Different table name
+  order_by: updated_at # Order by different field
+  order_direction: asc # Ascending order
+  default_limit: 500 # Limit results
 
   # Custom search configuration
   search_columns:
     - title
     - content
     - author
-  search_type: phrase         # Use phrase search instead of websearch
+  search_type: phrase # Use phrase search instead of websearch
+
 
 # Example: Multiple Supabase projects
 # Use environment-specific configs:

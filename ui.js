@@ -1,7 +1,7 @@
 import blessed from "blessed";
 import contrib from "blessed-contrib";
 import { format } from "date-fns";
-import config, { SCRAP_TYPE_SYMBOLS, VIEW_HEADERS, ALL_HEADERS } from "./config.js";
+import config, { ALL_HEADERS } from "./config.js";
 import {
   formatTableData,
   reloadBookmarks,
@@ -10,26 +10,22 @@ import {
   formatLocation,
   formatFinancialAnalysis,
   formatTags,
-  formatSummary,
   stripMarkdown,
   formatContentType,
   formatConceptTags,
-  formatExtractionConfidence
+  formatExtractionConfidence,
+  generateMetaSummary,
 } from "./data.js";
 import chalk from "chalk";
 import { createForceLayoutView } from "./ui/force-layout.js";
 import { uiState } from "./ui/state.js";
 import { openUrl, copyToClipboard } from "./ui/safe-exec.js";
 
-export function viewSummary(
-  index,
-  currentBookmarks,
-  summaryBox,
-  alertBox,
-  miniMap,
-  screen
-) {
+export function viewSummary(index, currentBookmarks, summaryBox, alertBox, miniMap, screen) {
   uiState.stopCurrentAnimation();
+
+  // Reset scroll position to top when viewing a new scrap
+  summaryBox.setScrollPerc(0);
 
   const bookmark = currentBookmarks[index];
   if (!bookmark) {
@@ -38,54 +34,112 @@ export function viewSummary(
     return;
   }
 
-  // Filter out embedding fields and other technical fields from display
-  const displayHeaders = ALL_HEADERS.filter(header =>
-    !header.includes('embedding') &&
-    header !== 'id' &&
-    header !== 'processing_instance_id' &&
-    header !== 'processing_started_at'
+  // Build a rich, useful preview
+  const previewParts = [];
+
+  // Header with title or URL
+  if (bookmark.title) {
+    const title = stripMarkdown(bookmark.title).substring(0, 60);
+    previewParts.push(`{bold}{cyan-fg}${title}{/cyan-fg}{/bold}\n`);
+  } else if (bookmark.url) {
+    const url = bookmark.url.substring(0, 60);
+    previewParts.push(`{bold}{cyan-fg}${url}{/cyan-fg}{/bold}\n`);
+  }
+
+  // META-SUMMARY - Use pre-computed field from database, fallback to generating if missing
+  const metaSummary = bookmark.meta_summary || generateMetaSummary(bookmark);
+  previewParts.push(`{yellow-fg}◈{/yellow-fg} ${metaSummary}\n`);
+
+  // Date and Source
+  const date = bookmark.created_at ? format(new Date(bookmark.created_at), "yyyy-MM-dd HH:mm") : "";
+  const source = bookmark.source || "unknown";
+  previewParts.push(`\n{dim}${date} · ${source}{/dim}\n`);
+
+  // Quick stats
+  const stats = [];
+  if (bookmark.relationships && bookmark.relationships.length > 0) {
+    stats.push(`{green-fg}${bookmark.relationships.length} links{/green-fg}`);
+  }
+  if (bookmark.tags && Array.isArray(bookmark.tags) && bookmark.tags.length > 0) {
+    stats.push(`{magenta-fg}${bookmark.tags.length} tags{/magenta-fg}`);
+  }
+  if (bookmark.location && bookmark.location !== "Unknown") {
+    stats.push(`{blue-fg}📍 ${bookmark.location}{/blue-fg}`);
+  }
+  if (stats.length > 0) {
+    previewParts.push(`\n${stats.join(" · ")}\n`);
+  }
+
+  // Content type and confidence
+  if (bookmark.content_type) {
+    previewParts.push(`\n{dim}Type:{/dim} {yellow-fg}${bookmark.content_type.toUpperCase()}{/yellow-fg}`);
+  }
+  if (bookmark.extraction_confidence) {
+    const avgConfidence =
+      Object.values(bookmark.extraction_confidence).reduce((a, b) => a + b, 0) /
+      Object.keys(bookmark.extraction_confidence).length;
+    const confidencePct = Math.round(avgConfidence * 100);
+    const confidenceColor = confidencePct > 80 ? "green" : confidencePct > 60 ? "yellow" : "red";
+    previewParts.push(` · {${confidenceColor}-fg}${confidencePct}% confidence{/${confidenceColor}-fg}`);
+  }
+
+  // Tags preview
+  if (bookmark.concept_tags && Array.isArray(bookmark.concept_tags) && bookmark.concept_tags.length > 0) {
+    const tagPreview = bookmark.concept_tags
+      .slice(0, 3)
+      .map((tag) => `{cyan-fg}#${tag}{/cyan-fg}`)
+      .join(" ");
+    previewParts.push(`\n\n${tagPreview}`);
+  } else if (bookmark.tags && Array.isArray(bookmark.tags) && bookmark.tags.length > 0) {
+    const tagPreview = bookmark.tags
+      .slice(0, 3)
+      .map((tag) => `{cyan-fg}#${tag}{/cyan-fg}`)
+      .join(" ");
+    previewParts.push(`\n\n${tagPreview}`);
+  }
+
+  // Financial analysis preview
+  if (bookmark.financial_analysis?.tracked_assets?.length > 0) {
+    const assets = bookmark.financial_analysis.tracked_assets
+      .slice(0, 3)
+      .map((a) => `{green-fg}$${a.symbol}{/green-fg}`)
+      .join(" ");
+    previewParts.push(`\n\n{bold}Tracking:{/bold} ${assets}`);
+  }
+
+  // Keyboard shortcuts reminder at bottom
+  previewParts.push(
+    `\n\n{dim}───────────────{/dim}\n{dim}z=expand · space=open\nv=graph · r=refresh{/dim}`
   );
 
-  const summary = displayHeaders.map((header) => {
-    const value = bookmark[header];
-    let formattedValue;
+  const summary = previewParts.join("");
 
-    if (!value) {
-      formattedValue = "";
-    } else if (header === "relationships") {
-      formattedValue = formatRelationships(value);
-    } else if (header === "location") {
-      formattedValue = formatLocation(value);
-    } else if (header === "financial_analysis") {
-      formattedValue = formatFinancialAnalysis(value);
-    } else if (header === "tags") {
-      formattedValue = formatTags(value);
-    } else if (header === "content_type") {
-      formattedValue = formatContentType(value);
-    } else if (header === "concept_tags") {
-      formattedValue = formatConceptTags(value);
-    } else if (header === "extraction_confidence") {
-      formattedValue = formatExtractionConfidence(value);
-    } else if (header === "summary") {
-      formattedValue = value; // Keep full summary in detail view
-    } else if (header === "created_at" || header === "updated_at") {
-      formattedValue = format(new Date(value), "yyyy-MM-dd HH:mm");
-    } else if (typeof value === "string") {
-      formattedValue = value;
-    } else {
-      formattedValue = JSON.stringify(value, null, 2);
-    }
-
-    return formattedValue ? `${header}: ${formattedValue}` : null;
-  }).filter(Boolean).join("\n\n");
-
+  // Type out animation
   let charIndex = 0;
   const animDuration = 10;
-  const lettersAtATime = 8;
+  const lettersAtATime = 12; // Faster animation for more responsive feel
 
-  alertBox.setContent(JSON.stringify(bookmark.metadata, null, 2));
+  // Update status box with useful context
+  const statusParts = [];
 
-  updateMiniMap(miniMap, bookmark);
+  // Show position
+  statusParts.push(`${index + 1}/${currentBookmarks.length}`);
+
+  // Show source
+  if (bookmark.source) {
+    statusParts.push(bookmark.source);
+  }
+
+  // Show metadata counts
+  const tagCount = bookmark.tags?.length || 0;
+  const relCount = bookmark.relationships?.length || 0;
+  if (tagCount > 0 || relCount > 0) {
+    statusParts.push(`${tagCount}  ${relCount}`);
+  }
+
+  alertBox.setContent(statusParts.join(" · "));
+
+  updateMiniMap(miniMap, bookmark, summaryBox);
 
   const typeOutSummary = () => {
     if (charIndex < summary.length) {
@@ -101,43 +155,48 @@ export function viewSummary(
   uiState.setCurrentInterval(setInterval(typeOutSummary, animDuration));
 }
 
-export function updateSummary(
-  index,
-  currentBookmarks,
-  summaryBox,
-  alertBox,
-  miniMap,
-  screen
-) {
+export function updateSummary(index, currentBookmarks, summaryBox, alertBox, miniMap, screen) {
   uiState.stopCurrentAnimation();
   const validIndex = Math.max(0, Math.min(index, currentBookmarks.length - 1));
   if (validIndex < currentBookmarks.length && currentBookmarks[validIndex]) {
-    viewSummary(
-      validIndex,
-      currentBookmarks,
-      summaryBox,
-      alertBox,
-      miniMap,
-      screen
-    );
+    viewSummary(validIndex, currentBookmarks, summaryBox, alertBox, miniMap, screen);
   } else {
     summaryBox.setContent("No bookmark selected or data error.");
     screen.render();
   }
 }
 
-export function updateMiniMap(miniMap, bookmark) {
+export function updateMiniMap(miniMap, bookmark, summaryBox) {
   miniMap.clearMarkers();
-  if (bookmark.metadata.latitude && bookmark.metadata.longitude) {
+
+  // Check multiple possible locations for lat/lng data
+  const lat = bookmark.latitude || bookmark.metadata?.latitude || bookmark.location?.latitude;
+  const lng = bookmark.longitude || bookmark.metadata?.longitude || bookmark.location?.longitude;
+
+  if (lat && lng) {
+    // Has location: show map, shrink preview to normal size
     miniMap.addMarker({
-      lat: bookmark.metadata.latitude,
-      lon: bookmark.metadata.longitude,
+      lat: parseFloat(lat),
+      lon: parseFloat(lng),
       color: "red",
       char: "X",
     });
     miniMap.show();
+
+    // Reset preview to normal size (rows 0-5, height 6)
+    if (summaryBox) {
+      summaryBox.height = 6;
+      summaryBox.top = 0;
+    }
   } else {
+    // No location: hide map, expand preview to fill the space
     miniMap.hide();
+
+    // Expand preview to cover map area (rows 0-9, height 10)
+    if (summaryBox) {
+      summaryBox.height = 10;
+      summaryBox.top = 0;
+    }
   }
 }
 
@@ -165,7 +224,14 @@ export function createUI(bookmarks) {
         if (!Array.isArray(row)) return [];
         return row.map((cell, index) => {
           const safeCell = (cell ?? "").toString();
-          return index === 1 ? chalk.green(safeCell) : safeCell;
+          // Color the date column dim, type column stays default, content gets emphasis
+          if (index === 0) {
+            return chalk.dim(safeCell); // Date
+          } else if (index === 2) {
+            return chalk.white(safeCell); // Content
+          } else {
+            return safeCell; // Type (emojis)
+          }
         });
       }),
     };
@@ -246,14 +312,7 @@ export function setupKeyboardShortcuts(
   screen.key(["j", "down"], () => {
     const nextIndex = table.rows.selected + 1;
     if (nextIndex < bookmarks.length) {
-      updateSummary(
-        nextIndex,
-        bookmarks,
-        summaryBox,
-        alertBox,
-        miniMap,
-        screen
-      );
+      updateSummary(nextIndex, bookmarks, summaryBox, alertBox, miniMap, screen);
     }
     screen.render();
   });
@@ -261,14 +320,7 @@ export function setupKeyboardShortcuts(
   screen.key(["k", "up"], () => {
     const prevIndex = table.rows.selected - 1;
     if (prevIndex >= 0) {
-      updateSummary(
-        prevIndex,
-        bookmarks,
-        summaryBox,
-        alertBox,
-        miniMap,
-        screen
-      );
+      updateSummary(prevIndex, bookmarks, summaryBox, alertBox, miniMap, screen);
     }
     screen.render();
   });
@@ -310,14 +362,21 @@ export function setupKeyboardShortcuts(
       const href = bookmark.public_url;
       try {
         await copyToClipboard(href);
-        alertBox.setContent("Copied to clipboard: " + href);
+        alertBox.setContent(`{green-fg}✓ Copied:{/green-fg} ${href.substring(0, 50)}${href.length > 50 ? '…' : ''}`);
       } catch (error) {
-        alertBox.setContent("Error copying to clipboard: " + error.message);
+        alertBox.setContent(`{red-fg}✗ Error:{/red-fg} ${error.message}`);
       }
       setTimeout(() => {
-        alertBox.setContent("");
+        const bookmark = bookmarks[selected];
+        const statusParts = [];
+        statusParts.push(`${selected + 1}/${bookmarks.length}`);
+        if (bookmark.source) statusParts.push(bookmark.source);
+        const tagCount = bookmark.tags?.length || 0;
+        const relCount = bookmark.relationships?.length || 0;
+        if (tagCount > 0 || relCount > 0) statusParts.push(`${tagCount}  ${relCount}`);
+        alertBox.setContent(statusParts.join(" · "));
         screen.render();
-      }, 5000);
+      }, 2000);
       screen.render();
     }
   });
@@ -327,11 +386,7 @@ export function setupKeyboardShortcuts(
   });
 
   screen.key(["z", "enter"], () => {
-    toggleFullScreenSummary(
-      fullScreenSummaryBox,
-      bookmarks,
-      table.rows.selected
-    );
+    toggleFullScreenSummary(fullScreenSummaryBox, bookmarks, table.rows.selected);
   });
 
   screen.key(["v"], () => {
@@ -349,14 +404,21 @@ export function setupKeyboardShortcuts(
       const public_url = bookmark.public_url;
       try {
         await copyToClipboard(public_url);
-        alertBox.setContent("Copied to clipboard: " + public_url);
+        alertBox.setContent(`{green-fg}✓ Copied:{/green-fg} ${public_url.substring(0, 50)}${public_url.length > 50 ? '…' : ''}`);
       } catch (error) {
-        alertBox.setContent("Error copying to clipboard: " + error.message);
+        alertBox.setContent(`{red-fg}✗ Error:{/red-fg} ${error.message}`);
       }
       setTimeout(() => {
-        alertBox.setContent("");
+        const bookmark = bookmarks[selected];
+        const statusParts = [];
+        statusParts.push(`${selected + 1}/${bookmarks.length}`);
+        if (bookmark.source) statusParts.push(bookmark.source);
+        const tagCount = bookmark.tags?.length || 0;
+        const relCount = bookmark.relationships?.length || 0;
+        if (tagCount > 0 || relCount > 0) statusParts.push(`${tagCount}  ${relCount}`);
+        alertBox.setContent(statusParts.join(" · "));
         screen.render();
-      }, 5000);
+      }, 2000);
       screen.render();
     }
   });
@@ -377,37 +439,36 @@ export function setupKeyboardShortcuts(
 }
 
 function createTable(grid) {
-  // Ensure we have a valid terminal width, default to 80 if not available
+  // Edge-to-edge table - use full terminal width
   const terminalWidth = process.stdout.columns || 80;
-  const totalWidth = Math.max(50, terminalWidth - 4); // Account for borders, minimum 50
 
-  // Get column widths from config
-  const columnConfig = config.display?.column_widths || { date: 15, source: 15, content: 70 };
-  const minWidths = config.display?.min_column_widths || { date: 10, source: 8, content: 20 };
-
-  // Calculate proportional widths
-  const dateWidth = Math.floor(totalWidth * (columnConfig.date / 100));
-  const sourceWidth = Math.floor(totalWidth * (columnConfig.source / 100));
-  const contentWidth = totalWidth - dateWidth - sourceWidth; // Rest for content
+  // Optimized column layout for information density
+  const dateWidth = 6;     // "MM/DD"
+  const srcWidth = 5;      // Icon + count (e.g., " 12")
+  const contentWidth = terminalWidth - dateWidth - srcWidth - 6; // Rest for content (minus borders/padding)
 
   return grid.set(0, 0, 12, 8, contrib.table, {
     keys: true,
-    label: "Bookmarks",
+    label: "", // No label for edge-to-edge
+    border: "line", // Keep border but make it blend
     columnWidth: [
-      Math.max(minWidths.date, dateWidth),
-      Math.max(minWidths.source, sourceWidth),
-      Math.max(minWidths.content, contentWidth),
+      dateWidth,
+      srcWidth,
+      Math.max(50, contentWidth), // Ensure minimum readable width
     ],
     vi: true,
     style: {
+      border: { fg: config.theme?.colors?.borders?.default || "#595959" },
       header: {
         bold: true,
+        fg: config.theme?.colors?.borders?.focus || "#ff1a90",
         align: "left",
       },
       cell: {
         selected: {
-          bg: "green",
-          fg: "black",
+          bg: config.theme?.colors?.borders?.selected || "#e60067",
+          fg: "#0d0d0d", // Dark text on bright bg
+          bold: true,
         },
       },
     },
@@ -415,38 +476,55 @@ function createTable(grid) {
 }
 
 function createSummaryBox(grid) {
+  const highlightColor = config.theme?.colors?.text?.highlight || "#ff1a90";
+  const borderColor = config.theme?.colors?.borders?.focus || "#ff1a90";
+
   return grid.set(0, 8, 6, 4, blessed.box, {
-    label: "Summary (enter/z to zoom)",
+    label: " Preview ",
     content:
-      "Welcome to scrapbook CLI\n\n" +
-      "NAVIGATE : ↑↓\n" +
-      "OPEN     : SPACE\n" +
-      "SEARCH   : s\n" +
-      "ZOOM     : ENTER or z\n" +
-      "REFRESH  : r\n" +
-      "QUIT     : q",
+      "{bold}scrapbook-cli{/bold}\n\n" +
+      `{${highlightColor}-fg}j/k{/${highlightColor}-fg}     Navigate\n` +
+      `{${highlightColor}-fg}SPACE{/${highlightColor}-fg}   Open URL\n` +
+      `{${highlightColor}-fg}s{/${highlightColor}-fg}       Search\n` +
+      `{${highlightColor}-fg}z{/${highlightColor}-fg}       Expand\n` +
+      `{${highlightColor}-fg}r{/${highlightColor}-fg}       Refresh\n` +
+      `{${highlightColor}-fg}?{/${highlightColor}-fg}       Help\n` +
+      `{${highlightColor}-fg}q{/${highlightColor}-fg}       Quit`,
     padding: 1,
     border: "line",
+    tags: true,
+    style: {
+      border: { fg: borderColor },
+      label: { fg: borderColor, bold: true },
+    },
   });
 }
 
 function createAlertBox(grid) {
+  const infoColor = config.theme?.colors?.borders?.info || "#ff66b5";
+
   return grid.set(10, 8, 2, 4, blessed.box, {
+    label: " Status ",
     content: "",
-    padding: 0,
+    padding: { left: 1, right: 1 },
     border: { type: "line" },
+    tags: true,
     style: {
-      focus: { border: { fg: "yellow" } },
+      border: { fg: infoColor },
+      label: { fg: infoColor, bold: true },
     },
   });
 }
 
 function createMiniMap(grid) {
+  const borderColor = config.theme?.colors?.palette?.[4] || "#ff279a"; // Hot Pink
+
   return grid.set(6, 8, 4, 4, contrib.map, {
-    label: "Location",
+    label: " Location ",
     style: {
-      shapeColor: "cyan",
+      border: { fg: borderColor },
     },
+    // Map widget doesn't support custom colors well, keep it simple
   });
 }
 
@@ -469,6 +547,8 @@ function createSearchQueryBox(screen) {
 }
 
 function createFullScreenSummaryBox(screen) {
+  const highlightColor = config.theme?.colors?.borders?.focus || "#ff1a90";
+
   const box = blessed.box({
     parent: screen,
     top: "center",
@@ -483,15 +563,19 @@ function createFullScreenSummaryBox(screen) {
     scrollable: true,
     alwaysScroll: true,
     scrollbar: {
-      ch: "█",
+      ch: "┃",
       track: {
         bg: "black",
       },
       style: {
-        inverse: true,
+        fg: highlightColor,
       },
     },
     padding: 1,
+    style: {
+      border: { fg: highlightColor },
+      scrollbar: { fg: highlightColor },
+    },
   });
 
   box.hide();
@@ -499,56 +583,48 @@ function createFullScreenSummaryBox(screen) {
 }
 
 export function displayHelp() {
-  return `
-Scrapbook CLI v1.0
+  return `{bold}{cyan-fg}scrapbook-cli{/cyan-fg}{/bold} v1.0
 
-NAVIGATION
-  ↑/↓        Browse entries
-  PgUp/PgDn  Jump 24 entries
+{bold}{yellow-fg}─── Navigation ───{/yellow-fg}{/bold}
+  {cyan-fg}↑/k{/cyan-fg}  {cyan-fg}↓/j{/cyan-fg}     Move up/down
+  {cyan-fg}PgUp{/cyan-fg} {cyan-fg}PgDn{/cyan-fg}    Jump 24 entries
 
-ACTIONS
-  ENTER/Z    Expand summary
-  SPACE      Open in browser
-  →          Copy public URL
-  ←          Copy scrapbook URL
-  S/         Search mode
-  V          View relationships
-  F          Force layout of current bookmark
-  R          Refresh data
+{bold}{yellow-fg}─── Actions ───{/yellow-fg}{/bold}
+  {cyan-fg}z{/cyan-fg} {cyan-fg}Enter{/cyan-fg}      Expand summary
+  {cyan-fg}Space{/cyan-fg}         Open in browser
+  {cyan-fg}→{/cyan-fg}             Copy public URL
+  {cyan-fg}←{/cyan-fg}             Copy entry URL
+  {cyan-fg}s{/cyan-fg} {cyan-fg}/{/cyan-fg}          Search
+  {cyan-fg}r{/cyan-fg}             Refresh data
 
-VIEWS
-  --map      Map view (startup option)
+{bold}{yellow-fg}─── Views ───{/yellow-fg}{/bold}
+  {cyan-fg}v{/cyan-fg}             Relationship view
+  {cyan-fg}f{/cyan-fg}             Force layout graph
+  {cyan-fg}--map{/cyan-fg}         Map view (startup)
 
-HELP
-  H          Help in sidebar
-  ?          Full help overlay
+{bold}{yellow-fg}─── Help ───{/yellow-fg}{/bold}
+  {cyan-fg}h{/cyan-fg}             Help in sidebar
+  {cyan-fg}?{/cyan-fg}             This overlay
 
-SYSTEM
-  ESC        Exit current mode
-  Q          Quit
+{bold}{yellow-fg}─── System ───{/yellow-fg}{/bold}
+  {cyan-fg}Esc{/cyan-fg}           Exit current mode
+  {cyan-fg}q{/cyan-fg}             Quit
 
-Status: Active
-`;
+{dim}Press ESC to close{/dim}`;
 }
 
-async function showSearchBox(
-  screen,
-  alertBox,
-  searchQueryBox,
-  updateDisplay,
-  bookmarks
-) {
+async function showSearchBox(screen, alertBox, searchQueryBox, updateDisplay, bookmarks) {
   const searchBox = blessed.textbox({
     parent: screen,
     top: "center",
     left: "center",
     height: 4,
     width: "50%",
+    label: " Search ",
     border: "line",
     style: {
-      border: {
-        fg: "black",
-      },
+      border: { fg: "yellow" },
+      label: { fg: "yellow", bold: true },
     },
   });
 
@@ -576,28 +652,26 @@ async function showSearchBox(
   screen.render();
 }
 
-function showRelationshipView(screen, scrap, bookmarks) {
+function showRelationshipView(screen, scrap, _bookmarks) {
   const relationshipBox = blessed.box({
     parent: screen,
     top: "center",
     left: "center",
     width: "90%",
     height: "90%",
-    border: {
-      type: "line",
-    },
+    border: { type: "line" },
     style: {
-      border: {
-        fg: "white",
-      },
+      border: { fg: "magenta" },
+      label: { fg: "magenta", bold: true },
     },
-    label: "Relationship View",
+    label: " Relationships ",
+    tags: true,
     content: "",
     scrollable: true,
     alwaysScroll: true,
     scrollbar: {
-      ch: " ",
-      inverse: true,
+      ch: "┃",
+      style: { fg: "magenta" },
     },
   });
 
@@ -612,14 +686,14 @@ function showRelationshipView(screen, scrap, bookmarks) {
   let content = `Relationships for: ${scrap.scrap_id}\n\n`;
   scrap.relationships.forEach((rel) => {
     // Skip empty or invalid relationships
-    if (!rel || typeof rel !== 'object') return;
+    if (!rel || typeof rel !== "object") return;
 
     // Handle both old and new schema formats
-    const sourceName = rel.source?.name || rel.source || 'Unknown';
-    const sourceType = rel.source?.type || '';
-    const targetName = rel.target?.name || rel.target || 'Unknown';
-    const targetType = rel.target?.type || '';
-    const relType = rel.type || rel.relationship || 'RELATED_TO';
+    const sourceName = rel.source?.name || rel.source || "Unknown";
+    const sourceType = rel.source?.type || "";
+    const targetName = rel.target?.name || rel.target || "Unknown";
+    const targetType = rel.target?.type || "";
+    const relType = rel.type || rel.relationship || "RELATED_TO";
 
     if (sourceType && targetType) {
       content += `${sourceName} [${sourceType}] --${relType}--> ${targetName} [${targetType}]\n`;
@@ -666,12 +740,13 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
   const content = Object.entries(bookmark)
     .filter(
       ([key, value]) =>
-        value !== null && value !== undefined &&
+        value !== null &&
+        value !== undefined &&
         key !== "summary" && // Skip summary as we handle it separately
-        !key.includes('embedding') && // Hide all embedding fields
-        key !== 'id' &&
-        key !== 'processing_instance_id' &&
-        key !== 'processing_started_at'
+        !key.includes("embedding") && // Hide all embedding fields
+        key !== "id" &&
+        key !== "processing_instance_id" &&
+        key !== "processing_started_at"
     )
     .map(([key, value]) => {
       let displayValue = "";
@@ -703,10 +778,7 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
             .join(",\n  ") +
           "\n]";
       } else if (Array.isArray(value)) {
-        displayValue =
-          "[\n  " +
-          value.map((v) => chalk.green(`"${v}"`)).join(",\n  ") +
-          "\n]";
+        displayValue = "[\n  " + value.map((v) => chalk.green(`"${v}"`)).join(",\n  ") + "\n]";
       } else if (typeof value === "object") {
         const jsonString = JSON.stringify(value, null, 2);
         displayValue =
@@ -735,25 +807,24 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
         key === "content"
           ? "◉" // Big dot for content
           : key === "title"
-          ? "❯" // Arrow for title
-          : key === "tags"
-          ? "⊛" // Star for tags
-          : key === "url"
-          ? "⌘" // Command symbol for URLs
-          : "•"; // Default bullet
+            ? "❯" // Arrow for title
+            : key === "tags"
+              ? "⊛" // Star for tags
+              : key === "url"
+                ? "⌘" // Command symbol for URLs
+                : "•"; // Default bullet
 
       return `${marker} ${key}: ${displayValue}`;
     })
     .join("\n\n");
 
   // Combine summary at the top with the rest of the content
-  const fullContent = summaryContent
-    ? `SUMMARY:\n${summaryContent}\n\n${content}`
-    : content;
+  const fullContent = summaryContent ? `SUMMARY:\n${summaryContent}\n\n${content}` : content;
 
-  summaryBox.setContent(
-    fullContent + "\n\n" + chalk.dim("Use ↑/↓ to scroll, ESC to close")
-  );
+  summaryBox.setContent(fullContent + "\n\n" + chalk.dim("Use ↑/↓ to scroll, ESC to close"));
+
+  // Reset scroll position to top when opening full-screen view
+  summaryBox.setScrollPerc(0);
 
   summaryBox.show();
   summaryBox.focus();

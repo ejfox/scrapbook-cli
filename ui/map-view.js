@@ -1,6 +1,12 @@
 import blessed from "blessed";
 import contrib from "blessed-contrib";
-import { stripMarkdown, formatTags, formatLocation, formatFinancialAnalysis, formatRelationships } from "../data.js";
+import {
+  stripMarkdown,
+  formatTags,
+  formatLocation,
+  formatFinancialAnalysis,
+  formatRelationships,
+} from "../data.js";
 
 export function createMapView(bookmarks) {
   const screen = blessed.screen({
@@ -10,7 +16,6 @@ export function createMapView(bookmarks) {
 
   // Ensure we have valid terminal dimensions
   const terminalWidth = process.stdout.columns || 80;
-  const terminalHeight = process.stdout.rows || 24;
   const cols = Math.min(16, Math.max(8, Math.floor(terminalWidth / 5)));
 
   const grid = new contrib.grid({ rows: 12, cols: cols, screen: screen });
@@ -44,11 +49,12 @@ export function createMapView(bookmarks) {
       // Check if location field has coordinates
       if (bookmark.location) {
         try {
-          const locationObj = typeof bookmark.location === 'string'
-            ? JSON.parse(bookmark.location)
-            : bookmark.location;
+          const locationObj =
+            typeof bookmark.location === "string"
+              ? JSON.parse(bookmark.location)
+              : bookmark.location;
           return locationObj.latitude && locationObj.longitude;
-        } catch (e) {
+        } catch {
           return false;
         }
       }
@@ -64,12 +70,13 @@ export function createMapView(bookmarks) {
       } else if (bookmark.location) {
         // Try to parse from location field
         try {
-          const locationObj = typeof bookmark.location === 'string'
-            ? JSON.parse(bookmark.location)
-            : bookmark.location;
+          const locationObj =
+            typeof bookmark.location === "string"
+              ? JSON.parse(bookmark.location)
+              : bookmark.location;
           lat = locationObj.latitude;
           lon = locationObj.longitude;
-        } catch (e) {
+        } catch {
           return null;
         }
       }
@@ -96,14 +103,13 @@ export function createMapView(bookmarks) {
   if (markers.length > 0) {
     showBookmarkInfo(markers[0].bookmarkData);
     infoBox.setContent(
-      `Found ${markers.length} bookmarks with location data\n\n` +
-      infoBox.getContent()
+      `Found ${markers.length} bookmarks with location data\n\n` + infoBox.getContent()
     );
   } else {
     infoBox.setContent(
       `No bookmarks found with location data.\n\n` +
-      `Total bookmarks: ${bookmarks.length}\n` +
-      `Need latitude/longitude coordinates to display on map.`
+        `Total bookmarks: ${bookmarks.length}\n` +
+        `Need latitude/longitude coordinates to display on map.`
     );
   }
 
@@ -117,7 +123,7 @@ export function createMapView(bookmarks) {
     const relationships = formatRelationships(bookmark.relationships);
 
     let info = `Source: ${source}\n\n`;
-    info += `Content: ${content.substring(0, 200)}${content.length > 200 ? '...' : ''}\n\n`;
+    info += `Content: ${content.substring(0, 200)}${content.length > 200 ? "..." : ""}\n\n`;
 
     if (tags) info += `Tags: ${tags}\n\n`;
     if (location) info += `Location: ${location}\n\n`;

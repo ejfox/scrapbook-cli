@@ -14,6 +14,7 @@ npm run config:edit
 ```
 
 ### Available Themes
+
 - **default** - Classic green terminal
 - **cyberpunk** - Neon lights and magenta/cyan
 - **solarized_dark** - Easy on the eyes
@@ -28,33 +29,39 @@ npm run config:edit
 ## 🛠️ Configuration Management CLI
 
 ### View available themes
+
 ```bash
 npm run config:themes
 ```
 
 ### Edit your config
+
 ```bash
 npm run config:edit        # Edit user config (~/.scrapbook/config.yaml)
 npm run config:edit local  # Edit project config (./.scrapbook.yaml)
 ```
 
 ### Validate configuration
+
 ```bash
 npm run config:validate           # Validate current config
 npm run config:validate file.yaml # Validate specific file
 ```
 
 ### Get configuration info
+
 ```bash
 npm run config:info  # Shows sources, theme, and validation status
 ```
 
 ### Watch for config changes
+
 ```bash
 npm run config:watch  # Hot-reload on config changes
 ```
 
 ### Get/Set specific values
+
 ```bash
 node config-cli.js get theme.colors.palette
 node config-cli.js set theme_preset dracula
@@ -62,11 +69,13 @@ node config-cli.js set display.column_widths.date 25
 ```
 
 ### List all valid keys
+
 ```bash
 node config-cli.js keys  # Shows all configurable options
 ```
 
 ### Reset configuration
+
 ```bash
 node config-cli.js reset       # Reset user config
 node config-cli.js reset local # Reset project config
@@ -120,10 +129,10 @@ Enable config hot-reloading during development:
 
 ```javascript
 // In your code
-import { watchConfig } from './config.js';
+import { watchConfig } from "./config.js";
 
 const unwatch = watchConfig((newConfig) => {
-  console.log('Config reloaded!', newConfig);
+  console.log("Config reloaded!", newConfig);
   // Update your app with new config
 });
 
@@ -132,6 +141,7 @@ unwatch();
 ```
 
 Or use the CLI:
+
 ```bash
 npm run config:watch
 ```
@@ -144,11 +154,11 @@ Create your own theme in `~/.scrapbook/config.yaml`:
 theme:
   colors:
     palette:
-      - "#E91E63"  # Pink
-      - "#9C27B0"  # Purple
-      - "#673AB7"  # Deep Purple
-      - "#3F51B5"  # Indigo
-      - "#2196F3"  # Blue
+      - "#E91E63" # Pink
+      - "#9C27B0" # Purple
+      - "#673AB7" # Deep Purple
+      - "#3F51B5" # Indigo
+      - "#2196F3" # Blue
     borders:
       default: "#9C27B0"
       focus: "#E91E63"
@@ -174,19 +184,21 @@ symbols:
 ## 🗄️ Database & Supabase Configuration
 
 ### Connection Settings
+
 ```yaml
 database:
   # Credentials from environment variables (recommended)
   # SUPABASE_URL and SUPABASE_KEY
 
-  table: scraps               # Table to query
-  order_by: created_at        # Sort field
-  order_direction: desc       # asc or desc
-  default_limit: 1000         # Max records to fetch
-  default_select: "*"         # Fields to select
+  table: scraps # Table to query
+  order_by: created_at # Sort field
+  order_direction: desc # asc or desc
+  default_limit: 1000 # Max records to fetch
+  default_select: "*" # Fields to select
 ```
 
 ### Search Configuration
+
 ```yaml
 database:
   search_columns:
@@ -194,13 +206,14 @@ database:
     - tags
     - summary
     - title
-    - author                  # Add custom columns
+    - author # Add custom columns
 
-  search_type: websearch      # Options: websearch, plain, phrase
-  search_config: english      # Language config for search
+  search_type: websearch # Options: websearch, plain, phrase
+  search_config: english # Language config for search
 ```
 
 ### Multiple Supabase Projects
+
 ```yaml
 # Use NODE_ENV to switch between databases
 
@@ -221,6 +234,7 @@ database:
 ```
 
 ### Environment Variable Overrides
+
 ```bash
 # Override any database setting via env vars
 export SCRAPBOOK_DATABASE_TABLE=my_custom_table
@@ -232,6 +246,7 @@ export SCRAPBOOK_DATABASE_SEARCH_TYPE=phrase
 ## 📊 Performance Tuning
 
 ### Disable animations for speed
+
 ```yaml
 animations:
   summary:
@@ -241,32 +256,36 @@ animations:
 ```
 
 ### Optimize Database Queries
+
 ```yaml
 database:
-  default_limit: 200          # Fetch fewer records
-  default_select: "id,title,content,created_at"  # Only needed fields
+  default_limit: 200 # Fetch fewer records
+  default_select: "id,title,content,created_at" # Only needed fields
 ```
 
 ### Adjust physics for smoother force layout
+
 ```yaml
 physics:
-  damping: 0.95      # More damping = smoother
+  damping: 0.95 # More damping = smoother
   repulsion_force: 10 # Higher = more spread out
-  tick_interval: 50   # Lower = smoother animation
+  tick_interval: 50 # Lower = smoother animation
 ```
 
 ### Optimize column widths for your terminal
+
 ```yaml
 display:
   column_widths:
-    date: 12       # Narrower date
-    source: 10     # Narrower source
-    content: 78    # More room for content
+    date: 12 # Narrower date
+    source: 10 # Narrower source
+    content: 78 # More room for content
 ```
 
 ## 🔐 Security
 
 ### Supabase Credentials
+
 **NEVER** store credentials in config files. Always use environment variables:
 
 ```bash
@@ -276,6 +295,7 @@ SUPABASE_KEY=your-anon-key-here
 ```
 
 The config system checks in this order:
+
 1. Config file values (if explicitly set)
 2. Environment variables (recommended)
 
@@ -293,6 +313,7 @@ database:
 ```
 
 ### General Security
+
 - User configs are stored in `~/.scrapbook/config.yaml`
 - Sensitive data should use environment variables, not config files
 - Config files are validated to prevent injection attacks
@@ -313,12 +334,14 @@ When distributing your app:
 ## 🐛 Troubleshooting
 
 ### Config not loading?
+
 ```bash
 npm run config:info  # Check which configs are loaded
 npm run config:validate  # Check for validation errors
 ```
 
 ### Theme not applying?
+
 ```bash
 # Check theme is available
 npm run config:themes
@@ -331,6 +354,7 @@ SCRAPBOOK_THEME=cyberpunk node index.mjs
 ```
 
 ### Hot reload not working?
+
 - Ensure file exists before watching
 - Check file permissions
 - Use absolute paths in watchers
@@ -338,31 +362,36 @@ SCRAPBOOK_THEME=cyberpunk node index.mjs
 ## 🚀 Advanced Usage
 
 ### Programmatic theme switching
+
 ```javascript
-import { loadConfig } from './config.js';
+import { loadConfig } from "./config.js";
 
 // Switch theme at runtime
-const config = loadConfig({ theme: 'cyberpunk' });
+const config = loadConfig({ theme: "cyberpunk" });
 ```
 
 ### Custom validation rules
-```javascript
-import { validateConfig } from './config/validator.js';
 
-const customConfig = { /* ... */ };
+```javascript
+import { validateConfig } from "./config/validator.js";
+
+const customConfig = {
+  /* ... */
+};
 const result = validateConfig(customConfig);
 
 if (!result.valid) {
-  console.error('Config errors:', result.errors);
+  console.error("Config errors:", result.errors);
 }
 ```
 
 ### Migration from old configs
+
 ```javascript
-import { saveUserConfig } from './config.js';
+import { saveUserConfig } from "./config.js";
 
 // Migrate old config format
-const oldConfig = JSON.parse(fs.readFileSync('old-config.json'));
+const oldConfig = JSON.parse(fs.readFileSync("old-config.json"));
 const newConfig = migrateConfig(oldConfig);
 await saveUserConfig(newConfig);
 ```

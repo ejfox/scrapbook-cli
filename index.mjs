@@ -4,160 +4,146 @@ import { Command } from "commander";
 import { loadBookmarks, displayScrapJson } from "./data.js";
 import { loadConfig } from "./config.js";
 import blessed from "blessed";
-import {
-  createUI,
-  setupKeyboardShortcuts,
-  displayHelp,
-} from "./ui.js";
+import { createUI, setupKeyboardShortcuts, displayHelp } from "./ui.js";
 import { createMapView } from "./ui/map-view.js";
 
 async function showLoadingScreen() {
   const screen = blessed.screen({
     smartCSR: true,
-    title: "Loading Scrapbook CLI",
+    title: "scrapbook-cli",
   });
 
-  // Create a more visually appealing loading box
+  // Functional status log - no fancy animations
   const loadingBox = blessed.box({
     parent: screen,
-    top: "center",
-    left: "center",
-    width: "60%",
-    height: "20%",
-    align: "center",
-    valign: "middle",
-    content: "INITIALIZING SCRAPBOOK",
+    top: 1,
+    left: 1,
+    width: "100%-2",
+    height: "100%-2",
+    tags: true,
     border: {
       type: "line",
     },
     style: {
       border: {
-        fg: "green",
+        fg: "#595959", // Vulpes gray
       },
-      bold: true,
     },
   });
 
-  // Create a progress bar
-  const progressBar = blessed.progressbar({
-    parent: loadingBox,
-    top: 2,
-    left: "center",
-    width: "80%",
-    height: 1,
-    filled: 0,
-    style: {
-      bar: {
-        fg: "green",
-      },
-      bg: "black",
-    },
-  });
+  const startTime = Date.now();
+  const logLines = [];
 
-  // Create loading text that changes
-  const loadingStates = [
-    "Loading bookmarks",
-    "Processing data",
-    "Initializing interface",
-    "Almost ready",
-  ];
-  let currentState = 0;
-  let progress = 0;
-
-  const loadingInterval = setInterval(() => {
-    // Update progress
-    progress = Math.min(100, progress + 2);
-    progressBar.setProgress(progress);
-
-    // Update loading text
-    if (progress % 25 === 0) {
-      currentState = (currentState + 1) % loadingStates.length;
-      loadingBox.setContent(
-        `${loadingStates[currentState]}\n\n` +
-          `${".".repeat((progress % 4) + 1)}`
-      );
-    }
-
+  function addLog(message, type = "info") {
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(3);
+    const prefix = type === "error" ? "{red-fg}✗{/red-fg}" :
+                   type === "success" ? "{#ff1a90-fg}✓{/}" :
+                   "{#595959-fg}◆{/}";
+    const line = `{#595959-fg}[${elapsed}s]{/} ${prefix} ${message}`;
+    logLines.push(line);
+    loadingBox.setContent(logLines.join("\n"));
     screen.render();
-  }, 50);
+  }
 
-  screen.render();
-  return { screen, loadingInterval };
+  addLog("Initializing scrapbook-cli", "info");
+  addLog("Loading configuration", "info");
+
+  // Return log function so we can update from outside
+  return {
+    screen,
+    addLog,
+    finish: () => {
+      addLog("Initialization complete", "success");
+      screen.render();
+    }
+  };
 }
 
 // Main function
 async function main(options) {
-  // Load config with theme if specified
-  if (options.theme) {
-    loadConfig({ theme: options.theme, silent: false });
-  }
-
-  const { screen: loadingScreen, loadingInterval } = await showLoadingScreen();
+  const { screen: loadingScreen, addLog, finish } = await showLoadingScreen();
 
   try {
+    // Load config with theme if specified
+    const configStart = Date.now();
+    if (options.theme) {
+      loadConfig({ theme: options.theme, silent: false });
+      addLog(`Applied theme: ${options.theme}`, "success");
+    } else {
+      loadConfig({ silent: true });
+    }
+    const configTime = Date.now() - configStart;
+    addLog(`Configuration loaded (${configTime}ms)`, "success");
+
+    // Connect to database and load bookmarks
+    addLog("Connecting to Supabase...", "info");
+    const loadStart = Date.now();
     const bookmarks = await loadBookmarks();
-    // Clean up loading screen
-    clearInterval(loadingInterval);
-    loadingScreen.destroy();
+    const loadTime = Date.now() - loadStart;
+
+    addLog(`Connected to database`, "success");
+    addLog(`Loaded ${bookmarks.length} scraps (${loadTime}ms)`, "success");
+
+    // Calculate some stats
+    const withTags = bookmarks.filter(b => b.tags && b.tags.length > 0).length;
+    const withSummary = bookmarks.filter(b => b.summary).length;
+    const withMetaSummary = bookmarks.filter(b => b.meta_summary).length;
+    const withLocation = bookmarks.filter(b => b.location && b.location !== "Unknown").length;
+
+    addLog(`Stats: ${withTags} tagged, ${withSummary} summarized, ${withMetaSummary} meta, ${withLocation} located`, "info");
 
     if (options.map) {
-      createMapView(bookmarks);
+      addLog("Initializing map view...", "info");
+      finish();
+      setTimeout(() => {
+        loadingScreen.destroy();
+        createMapView(bookmarks);
+      }, 500);
       return;
     }
 
-    const {
-      screen,
-      table,
-      summaryBox,
-      alertBox,
-      miniMap,
-      searchQueryBox,
-      fullScreenSummaryBox,
-      updateDisplay,
-    } = createUI(bookmarks);
+    addLog("Building UI components...", "info");
+    addLog(`Ready`, "success");
+    finish();
 
-    setupKeyboardShortcuts(
-      screen,
-      table,
-      summaryBox,
-      alertBox,
-      miniMap,
-      searchQueryBox,
-      fullScreenSummaryBox,
-      bookmarks,
-      updateDisplay
-    );
+    // Brief pause to show completion, then destroy loading and create main UI
+    setTimeout(() => {
+      loadingScreen.destroy();
 
-    table.focus();
-    screen.render();
+      // Now create main UI after loading screen is destroyed
+      const {
+        screen,
+        table,
+        summaryBox,
+        alertBox,
+        miniMap,
+        searchQueryBox,
+        fullScreenSummaryBox,
+        updateDisplay,
+      } = createUI(bookmarks);
+
+      setupKeyboardShortcuts(
+        screen,
+        table,
+        summaryBox,
+        alertBox,
+        miniMap,
+        searchQueryBox,
+        fullScreenSummaryBox,
+        bookmarks,
+        updateDisplay
+      );
+
+      table.focus();
+      screen.render();
+    }, 400);
   } catch (error) {
-    // If there's an error, show it in the loading screen
-    clearInterval(loadingInterval);
-    loadingScreen.destroy();
+    addLog(`Error: ${error.message}`, "error");
+    addLog("Connection failed - press any key to exit", "error");
 
-    const errorScreen = blessed.screen({
-      smartCSR: true,
-      title: "Error",
-    });
-
-    const errorBox = blessed.box({
-      parent: errorScreen,
-      top: "center",
-      left: "center",
-      width: "80%",
-      height: "50%",
-      content: `CONNECTION ERROR\n\nCould not load bookmarks.\nPlease check your connection and try again.\n\nError: ${error.message}\n\nPress any key to exit`,
-      border: "line",
-      style: {
-        border: { fg: "red" },
-      },
-    });
-
-    errorScreen.key(["escape", "q", "C-c", "enter", "space"], () => {
+    loadingScreen.key(["escape", "q", "C-c", "enter", "space"], () => {
       process.exit(1);
     });
-
-    errorScreen.render();
   }
 }
 

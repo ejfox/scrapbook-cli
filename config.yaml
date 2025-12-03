@@ -3,54 +3,56 @@
 
 # UI Theme and Colors
 theme:
+  preset: vulpes # Use vulpes-reddish theme from themes.yaml
+
   colors:
     palette:
-      - "#00FF00"  # Green
-      - "#FF0080"  # Pink
-      - "#0080FF"  # Blue
-      - "#FF8000"  # Orange
-      - "#8000FF"  # Purple
-      - "#00FF80"  # Cyan
-      - "#FF4000"  # Red
-      - "#80FF00"  # Lime
-      - "#4000FF"  # Indigo
-      - "#FF0040"  # Magenta
+      - "#e60058" # Red
+      - "#ff1a90" # Pink
+      - "#ff0095" # Magenta
+      - "#ff10ab" # Bright Magenta
+      - "#ff279a" # Hot Pink
+      - "#e60049" # Deep Red
+      - "#ff0040" # Crimson
+      - "#ff3381" # Light Pink
+      - "#ff66b5" # Pastel Pink
+      - "#ff57c4" # Violet Pink
 
     borders:
-      default: white
-      focus: yellow
-      selected: green
-      alert: red
-      info: cyan
+      default: "#595959"  # Gray
+      focus: "#ff1a90"     # Pink
+      selected: "#e60067"  # Bright Red
+      alert: "#ff0040"     # Crimson
+      info: "#ff66b5"      # Pastel Pink
 
     text:
-      default: white
-      highlight: green
-      error: red
-      dim: gray
+      default: "#f2cfdf"   # Warm off-white
+      highlight: "#ff1a90" # Pink
+      error: "#ff0040"     # Crimson
+      dim: "#595959"       # Gray
 
-# Scrap Type Symbols
+# Scrap Type Symbols (Nerd Fonts)
 symbols:
   types:
-    article: "📄"
-    bookmark: "🔖"
-    code: "💻"
-    image: "🖼️"
-    video: "🎥"
-    audio: "🎵"
-    document: "📋"
-    default: "📝"
+    article: ""   # nf-fa-file_text
+    bookmark: ""  # nf-fa-bookmark
+    code: ""      # nf-fa-code
+    image: ""     # nf-fa-image
+    video: ""     # nf-fa-play_circle
+    audio: ""     # nf-fa-music
+    document: ""  # nf-fa-file
+    default: ""   # nf-fa-sticky_note
 
   ui:
-    bullet: "•"
-    arrow: "❯"
+    bullet: "◆"
+    arrow: "▶"
     star: "⊛"
     command: "⌘"
-    dot: "◉"
-    diamond: "◆"
+    dot: "•"
+    diamond: "◇"
     circle: "○"
     filled_circle: "●"
-    summary_bullet: "⟡"
+    summary_bullet: "◈"
 
 # Table Display Configuration
 display:
@@ -67,6 +69,7 @@ display:
     - scrap_id
     - created_at
     - updated_at
+    - published_at
     - source
     - content
     - url
@@ -75,6 +78,7 @@ display:
     - summary
     - relationships
     - location
+    - screenshot_url
     - financial_analysis
     - metadata
 
@@ -89,9 +93,9 @@ display:
 
   # Column width percentages for table
   column_widths:
-    date: 15      # % for date column
-    source: 15    # % for source column
-    content: 70   # % for content column (remainder)
+    date: 15 # % for date column
+    source: 15 # % for source column
+    content: 70 # % for content column (remainder)
 
   # Minimum column widths in characters
   min_column_widths:
@@ -103,14 +107,14 @@ display:
 animations:
   summary:
     enabled: true
-    duration: 10      # milliseconds between updates
-    chunk_size: 8     # characters per update
+    duration: 10 # milliseconds between updates
+    chunk_size: 8 # characters per update
 
   force_layout:
     enabled: true
-    tick_interval: 100  # milliseconds
+    tick_interval: 100 # milliseconds
     auto_start: true
-    auto_start_delay: 1000  # milliseconds
+    auto_start_delay: 1000 # milliseconds
 
 # Force Layout Physics
 physics:
@@ -204,8 +208,8 @@ commands:
 database:
   # Supabase connection (can override with env vars for security)
   # Set SUPABASE_URL and SUPABASE_KEY in .env or environment
-  supabase_url: null  # Will use SUPABASE_URL env var if not set
-  supabase_key: null  # Will use SUPABASE_KEY env var if not set
+  supabase_url: null # Will use SUPABASE_URL env var if not set
+  supabase_key: null # Will use SUPABASE_KEY env var if not set
 
   # Table configuration
   table: scraps
@@ -236,4 +240,4 @@ misc:
   content_preview_length: 80
   relationship_preview_count: 5
   location_preview_length: 50
-  alert_timeout: 5000  # milliseconds
+  alert_timeout: 5000 # milliseconds
