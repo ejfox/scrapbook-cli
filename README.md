@@ -232,6 +232,34 @@ scrapbook-cli list --jsonl | \
 
 See [CLI-EXAMPLES.md](./docs/CLI-EXAMPLES.md) for more advanced usage patterns.
 
+### YouTube Playlist & Transcription Workflows
+
+Create yt-dlp playlists and Whisper transcriptions for video essay research:
+
+```bash
+# Generate playlist filtered by entity
+node youtube-playlist.mjs generate --entity "Palantir" -o palantir.txt
+
+# Download and transcribe automatically
+node youtube-playlist.mjs transcribe \
+  --entity "Peter Thiel" \
+  --output-dir ./transcripts \
+  --model base
+
+# Filter by tags for themed playlists
+node youtube-playlist.mjs generate \
+  --tag AI --tag machinelearning \
+  -o ai-videos.txt
+
+# Download with yt-dlp
+yt-dlp -a ai-videos.txt --write-auto-sub --sub-lang en
+
+# Analyze transcripts with llm
+cat transcripts/*.txt | llm "Summarize the main themes"
+```
+
+See [YOUTUBE-WORKFLOWS.md](./YOUTUBE-WORKFLOWS.md) for complete video essay research workflows.
+
 ## Power User Integrations
 
 scrapbook-cli integrates seamlessly with your power user workflow:
