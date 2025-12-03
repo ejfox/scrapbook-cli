@@ -32,6 +32,7 @@
     "config:watch": "node config-tool.js watch"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
     "@supabase/supabase-js": "^2.43.4",
     "axios": "^1.7.2",
     "blessed": "^0.1.81",
@@ -47,7 +48,8 @@
     "joi": "^18.0.1",
     "js-yaml": "^4.1.0",
     "terminal-image": "^2.0.0",
-    "toml": "^3.0.0"
+    "toml": "^3.0.0",
+    "youtube-transcript": "^1.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
