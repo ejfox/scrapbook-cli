@@ -24,12 +24,12 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "config": "node config-cli.js",
-    "config:themes": "node config-cli.js themes",
-    "config:edit": "node config-cli.js edit",
-    "config:validate": "node config-cli.js validate",
-    "config:info": "node config-cli.js info",
-    "config:watch": "node config-cli.js watch"
+    "config": "node config-tool.js",
+    "config:themes": "node config-tool.js themes",
+    "config:edit": "node config-tool.js edit",
+    "config:validate": "node config-tool.js validate",
+    "config:info": "node config-tool.js info",
+    "config:watch": "node config-tool.js watch"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.4",

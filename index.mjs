@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { loadBookmarks, displayScrapJson, searchBookmarks } from "./data.js";
+import { loadBookmarks, displayScrapJson, searchBookmarks } from "./database.js";
 import { loadConfig } from "./config.js";
 import blessed from "blessed";
-import { createUI, setupKeyboardShortcuts, displayHelp } from "./ui.js";
+import { createUI, setupKeyboardShortcuts, displayHelp } from "./tui.js";
 import { createMapView } from "./ui/map-view.js";
 import { format } from "date-fns";
 

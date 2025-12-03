@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import os from "os";
 import { validateConfig } from "./validator.js";
-import { loadTheme } from "../theme-loader.js";
+import { loadTheme } from "../themes.js";
 import chokidar from "chokidar";
 
 const __filename = fileURLToPath(import.meta.url);

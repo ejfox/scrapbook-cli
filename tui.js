@@ -15,7 +15,7 @@ import {
   formatConceptTags,
   formatExtractionConfidence,
   generateMetaSummary,
-} from "./data.js";
+} from "./database.js";
 import chalk from "chalk";
 import { createForceLayoutView } from "./ui/force-layout.js";
 import { uiState } from "./ui/state.js";

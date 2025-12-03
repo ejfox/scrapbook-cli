@@ -32,7 +32,7 @@ pink = "#ff1a90"
 
 ```
 scrapbook-cli/
-├── theme-loader.js      # TOML theme loader (root level)
+├── themes.js            # TOML theme loader (root level)
 ├── themes/              # Theme directory
 │   └── vulpes-reddishnovember-dark.toml
 └── config/              # YAML config (separate from themes)

@@ -1,5 +1,5 @@
 import blessed from "blessed";
-import { stripMarkdown, formatTags } from "../data.js";
+import { stripMarkdown, formatTags } from "../database.js";
 
 export function createForceLayoutView(
   bookmarks,

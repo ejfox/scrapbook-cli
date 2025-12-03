@@ -6,7 +6,7 @@ import {
   formatLocation,
   formatFinancialAnalysis,
   formatRelationships,
-} from "../data.js";
+} from "../database.js";
 
 export function createMapView(bookmarks) {
   const screen = blessed.screen({
