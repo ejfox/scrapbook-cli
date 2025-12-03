@@ -110,21 +110,27 @@ async function generateSummary(text, title) {
 Title: ${title}
 
 Transcript:
-${text.substring(0, 8000)}`; // Limit to avoid token limits
+${text.substring(0, 4000)}`; // Limit to avoid token limits and speed up
 
   return new Promise((resolve, reject) => {
-    const llm = spawn('llm', ['-s', prompt]);
+    const llm = spawn('llm', ['-m', 'gemini-2.5-flash', '-s', prompt]);
 
     let output = '';
+    let errorOutput = '';
+
     llm.stdout.on('data', (data) => {
       output += data.toString();
+    });
+
+    llm.stderr.on('data', (data) => {
+      errorOutput += data.toString();
     });
 
     llm.on('close', (code) => {
       if (code === 0) {
         resolve(output.trim());
       } else {
-        reject(new Error(`llm failed with code ${code}`));
+        reject(new Error(`llm failed: ${errorOutput}`));
       }
     });
   });
