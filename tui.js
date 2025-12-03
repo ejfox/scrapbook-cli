@@ -36,6 +36,14 @@ export function viewSummary(index, currentBookmarks, summaryBox, alertBox, miniM
     return;
   }
 
+  // Pin URL to the top label (stays fixed when scrolling)
+  if (bookmark.url) {
+    const url = bookmark.url.length > 50 ? bookmark.url.substring(0, 47) + '...' : bookmark.url;
+    summaryBox.setLabel(` ${url} `);
+  } else {
+    summaryBox.setLabel(' Preview ');
+  }
+
   // Build a rich, useful preview
   const previewParts = [];
 
