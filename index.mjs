@@ -402,6 +402,64 @@ program
     }
   });
 
+// YouTube playlist commands
+const youtube = program.command('youtube').description('YouTube playlist and transcription tools');
+
+youtube
+  .command('generate')
+  .description('Generate yt-dlp playlist from YouTube bookmarks')
+  .option('--tag <tags...>', 'Filter by tags')
+  .option('--entity <entity>', 'Filter by knowledge graph entity')
+  .option('--search <query>', 'Search in titles/descriptions')
+  .option('--after <date>', 'Only videos after date (YYYY-MM-DD)')
+  .option('--before <date>', 'Only videos before date (YYYY-MM-DD)')
+  .option('-o, --output <file>', 'Output playlist file', 'playlist.txt')
+  .option('--format <format>', 'Output format: txt, json, m3u', 'txt')
+  .action(async (options) => {
+    loadConfig({ silent: true });
+    const { generatePlaylist } = await import('./youtube.js');
+    await generatePlaylist(options);
+  });
+
+youtube
+  .command('download')
+  .description('Download videos with yt-dlp')
+  .option('--tag <tags...>', 'Filter by tags')
+  .option('--entity <entity>', 'Filter by entity')
+  .option('--search <query>', 'Search query')
+  .option('-o, --output-dir <dir>', 'Download directory', './youtube-downloads')
+  .option('--audio-only', 'Download audio only (MP3)')
+  .option('--subs', 'Download subtitles')
+  .action(async (options) => {
+    loadConfig({ silent: true });
+    const { downloadVideos } = await import('./youtube.js');
+    await downloadVideos(options);
+  });
+
+youtube
+  .command('transcribe')
+  .description('Download and transcribe videos with Whisper')
+  .option('--entity <entity>', 'Filter by entity')
+  .option('--tag <tags...>', 'Filter by tags')
+  .option('--search <query>', 'Search query')
+  .option('-o, --output-dir <dir>', 'Output directory', './transcriptions')
+  .option('--model <model>', 'Whisper model (tiny, base, small, medium, large)', 'base')
+  .option('--keep-audio', 'Keep downloaded audio files')
+  .action(async (options) => {
+    loadConfig({ silent: true });
+    const { transcribeVideos } = await import('./youtube.js');
+    await transcribeVideos(options);
+  });
+
+youtube
+  .command('stats')
+  .description('Analyze YouTube collection statistics')
+  .action(async () => {
+    loadConfig({ silent: true });
+    const { showStats } = await import('./youtube.js');
+    await showStats();
+  });
+
 // Legacy json command (kept for backwards compatibility)
 program
   .command("json <scrap_id>")

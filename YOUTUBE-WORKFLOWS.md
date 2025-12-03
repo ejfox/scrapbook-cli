@@ -21,7 +21,7 @@
 
 ```bash
 # Get all your YouTube bookmarks as a yt-dlp playlist
-node youtube-playlist.mjs generate -o my-playlist.txt
+scrapbook-cli youtube generate -o my-playlist.txt
 
 # Download them
 yt-dlp -a my-playlist.txt
@@ -31,7 +31,7 @@ yt-dlp -a my-playlist.txt
 
 ```bash
 # Create a playlist of machine learning tutorials
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --tag machinelearning \
   --tag tutorial \
   -o ml-tutorials.txt
@@ -44,13 +44,13 @@ yt-dlp -a ml-tutorials.txt --write-auto-sub --sub-lang en
 
 ```bash
 # Get all videos mentioning "Peter Thiel"
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --entity "Peter Thiel" \
   --format json \
   -o thiel-videos.json
 
 # Get all videos about "Palantir"
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --entity "Palantir" \
   -o palantir-videos.txt
 ```
@@ -59,7 +59,7 @@ node youtube-playlist.mjs generate \
 
 ```bash
 # AI videos from 2025 with "GPT" in title/description
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --tag AI \
   --search "GPT" \
   --after 2025-01-01 \
@@ -76,13 +76,13 @@ node youtube-playlist.mjs generate \
 
 ```bash
 # Palantir coverage
-node youtube-playlist.mjs generate --entity "Palantir" -o palantir.txt
+scrapbook-cli youtube generate --entity "Palantir" -o palantir.txt
 
 # Surveillance capitalism
-node youtube-playlist.mjs generate --tag surveillance -o surveillance.txt
+scrapbook-cli youtube generate --tag surveillance -o surveillance.txt
 
 # Peter Thiel commentary
-node youtube-playlist.mjs generate --entity "Peter Thiel" -o thiel.txt
+scrapbook-cli youtube generate --entity "Peter Thiel" -o thiel.txt
 ```
 
 #### Step 2: Download Videos
@@ -105,13 +105,13 @@ yt-dlp -a surveillance.txt \
 
 ```bash
 # Transcribe entire playlists
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --entity "Palantir" \
   --output-dir ./transcripts/palantir \
   --model base
 
 # Or just audio extraction for analysis
-node youtube-playlist.mjs download \
+scrapbook-cli youtube download \
   --entity "Peter Thiel" \
   --audio-only \
   --output-dir ./audio/thiel
@@ -145,7 +145,7 @@ scrapbook-cli entity "Palantir" --connections | \
   jq -r '.connections[].entity' | \
   while read entity; do
     echo "Downloading videos about: $entity"
-    node youtube-playlist.mjs generate \
+    scrapbook-cli youtube generate \
       --entity "$entity" \
       -o "./playlists/${entity}.txt"
   done
@@ -165,14 +165,14 @@ Track how coverage of a topic evolves:
 
 ```bash
 # 2024 AI coverage
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --tag AI \
   --after 2024-01-01 \
   --before 2024-12-31 \
   -o ai-2024.txt
 
 # 2025 AI coverage
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --tag AI \
   --after 2025-01-01 \
   -o ai-2025.txt
@@ -188,7 +188,7 @@ Build a searchable database of video sources:
 
 ```bash
 # Export all videos with full metadata
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --tag documentary \
   --format json \
   -o documentaries.json
@@ -211,7 +211,7 @@ Combine YouTube with other video platforms:
 
 ```bash
 # Get YouTube videos
-node youtube-playlist.mjs generate --tag "AI ethics" -o yt.txt
+scrapbook-cli youtube generate --tag "AI ethics" -o yt.txt
 
 # Get Vimeo bookmarks (if you have them)
 scrapbook-cli list --json | \
@@ -232,19 +232,19 @@ yt-dlp -a all-videos.txt
 
 ```bash
 # Tiny (fastest, least accurate)
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --entity "Elon Musk" \
   --model tiny \
   --output-dir ./quick-transcripts
 
 # Base (good balance)
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --tag tutorial \
   --model base \
   --output-dir ./transcripts
 
 # Large (most accurate, slowest)
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --entity "Curtis Yarvin" \
   --model large \
   --keep-audio \
@@ -272,7 +272,7 @@ cat corpus.txt | llm \
 
 ```bash
 # Transcribe everything
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --output-dir ./archive \
   --model base
 
@@ -349,7 +349,7 @@ cat transcripts/*.txt | \
 
 ```bash
 # Get overview stats
-node youtube-playlist.mjs stats
+scrapbook-cli youtube stats
 
 # Output:
 # Total YouTube videos: 56
@@ -374,7 +374,7 @@ scrapbook-cli list --json | \
   sort | uniq -c | sort -rn
 
 # What tags do you under-collect?
-node youtube-playlist.mjs stats | \
+scrapbook-cli youtube stats | \
   grep "videos$" | \
   awk '{print $NF, $1}' | \
   sort -n | head -10
@@ -395,14 +395,14 @@ Let's walk through a complete research workflow:
 mkdir -p palantir-research/{videos,audio,transcripts,analysis}
 
 # Get all Palantir-related videos
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --entity "Palantir" \
   --format json \
   -o palantir-research/playlist.json
 
 # Also get videos about related entities
 for entity in "ICE" "Peter Thiel" "Alex Karp"; do
-  node youtube-playlist.mjs generate \
+  scrapbook-cli youtube generate \
     --entity "$entity" \
     -o "palantir-research/${entity}.txt"
 done
@@ -419,7 +419,7 @@ yt-dlp -a palantir-research/playlist.json \
   -o "palantir-research/videos/%(title)s.%(ext)s"
 
 # Transcribe with Whisper
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --entity "Palantir" \
   --output-dir palantir-research/transcripts \
   --model base
@@ -465,7 +465,7 @@ cat palantir-research/transcripts/*.txt | \
 ### `generate` - Create Playlists
 
 ```bash
-node youtube-playlist.mjs generate [options]
+scrapbook-cli youtube generate [options]
 
 Options:
   --tag <tags...>       Filter by tags (multiple allowed)
@@ -480,7 +480,7 @@ Options:
 ### `download` - Download Videos
 
 ```bash
-node youtube-playlist.mjs download [options]
+scrapbook-cli youtube download [options]
 
 Options:
   --tag <tags...>           Filter by tags
@@ -494,7 +494,7 @@ Options:
 ### `transcribe` - Transcribe with Whisper
 
 ```bash
-node youtube-playlist.mjs transcribe [options]
+scrapbook-cli youtube transcribe [options]
 
 Options:
   --entity <entity>         Filter by entity
@@ -508,7 +508,7 @@ Options:
 ### `stats` - Analyze Collection
 
 ```bash
-node youtube-playlist.mjs stats
+scrapbook-cli youtube stats
 ```
 
 ---
@@ -519,20 +519,20 @@ node youtube-playlist.mjs stats
 
 ```bash
 # Start narrow
-node youtube-playlist.mjs generate --entity "Palantir" --tag surveillance
+scrapbook-cli youtube generate --entity "Palantir" --tag surveillance
 
 # Then expand
-node youtube-playlist.mjs generate --entity "Palantir"
+scrapbook-cli youtube generate --entity "Palantir"
 
 # Then related entities
-node youtube-playlist.mjs generate --entity "ICE"
+scrapbook-cli youtube generate --entity "ICE"
 ```
 
 ### 2. Use JSON Format for Metadata
 
 ```bash
 # JSON preserves all metadata
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --entity "Peter Thiel" \
   --format json \
   -o thiel.json
@@ -545,12 +545,12 @@ cat thiel.json | jq '.[] | select(.tags | contains(["politics"]))'
 
 ```bash
 # Transcribe doesn't re-transcribe existing files
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --tag AI \
   --output-dir ./transcripts
 
 # Run again to catch new videos
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --tag AI \
   --output-dir ./transcripts
 ```
@@ -610,7 +610,7 @@ yt-dlp -a playlist.txt --sleep-interval 5 --max-sleep-interval 10
 
 ```bash
 # Use smaller model for speed
-node youtube-playlist.mjs transcribe --model tiny
+scrapbook-cli youtube transcribe --model tiny
 
 # Or process in chunks
 split -l 10 playlist.txt playlist-chunk-

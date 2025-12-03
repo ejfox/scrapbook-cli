@@ -238,16 +238,16 @@ Create yt-dlp playlists and Whisper transcriptions for video essay research:
 
 ```bash
 # Generate playlist filtered by entity
-node youtube-playlist.mjs generate --entity "Palantir" -o palantir.txt
+scrapbook-cli youtube generate --entity "Palantir" -o palantir.txt
 
 # Download and transcribe automatically
-node youtube-playlist.mjs transcribe \
+scrapbook-cli youtube transcribe \
   --entity "Peter Thiel" \
   --output-dir ./transcripts \
   --model base
 
 # Filter by tags for themed playlists
-node youtube-playlist.mjs generate \
+scrapbook-cli youtube generate \
   --tag AI --tag machinelearning \
   -o ai-videos.txt
 
@@ -256,6 +256,9 @@ yt-dlp -a ai-videos.txt --write-auto-sub --sub-lang en
 
 # Analyze transcripts with llm
 cat transcripts/*.txt | llm "Summarize the main themes"
+
+# View collection stats
+scrapbook-cli youtube stats
 ```
 
 See [YOUTUBE-WORKFLOWS.md](./YOUTUBE-WORKFLOWS.md) for complete video essay research workflows.
