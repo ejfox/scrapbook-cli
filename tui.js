@@ -19,7 +19,7 @@ import {
 import chalk from "chalk";
 import { createForceLayoutView } from "./ui/force-layout.js";
 import { uiState } from "./ui/state.js";
-import { openUrl, copyToClipboard, launchFzf } from "./ui/safe-exec.js";
+import { openUrl, copyToClipboard, launchFzf, openInEditor } from "./ui/safe-exec.js";
 
 export function viewSummary(index, currentBookmarks, summaryBox, alertBox, miniMap, screen) {
   uiState.stopCurrentAnimation();
@@ -347,6 +347,30 @@ export function setupKeyboardShortcuts(
     }
   });
 
+  screen.key(["e"], async () => {
+    const selected = table.rows.selected;
+    if (selected >= 0 && selected < bookmarks.length) {
+      const bookmark = bookmarks[selected];
+      try {
+        alertBox.setContent("Opening in editor...");
+        screen.render();
+        await openInEditor(bookmark, screen);
+        alertBox.setContent("Closed editor");
+        setTimeout(() => {
+          alertBox.setContent("");
+          screen.render();
+        }, 2000);
+      } catch (error) {
+        alertBox.setContent("Error opening editor: " + error.message);
+        setTimeout(() => {
+          alertBox.setContent("");
+          screen.render();
+        }, 5000);
+      }
+      screen.render();
+    }
+  });
+
   screen.key(["pageup"], () => {
     summaryBox.scroll(-(summaryBox.height || 10));
     summaryBox.screen.render();
@@ -585,7 +609,7 @@ function createFullScreenSummaryBox(screen) {
 }
 
 export function displayHelp() {
-  return `{bold}{cyan-fg}scrapbook-cli{/cyan-fg}{/bold} v1.0
+  return `{bold}{cyan-fg}scrapbook-cli{/cyan-fg}{/bold} v2.0
 
 {bold}{yellow-fg}─── Navigation ───{/yellow-fg}{/bold}
   {cyan-fg}↑/k{/cyan-fg}  {cyan-fg}↓/j{/cyan-fg}     Move up/down
@@ -594,6 +618,7 @@ export function displayHelp() {
 {bold}{yellow-fg}─── Actions ───{/yellow-fg}{/bold}
   {cyan-fg}z{/cyan-fg} {cyan-fg}Enter{/cyan-fg}      Expand summary
   {cyan-fg}Space{/cyan-fg}         Open in browser
+  {cyan-fg}e{/cyan-fg}             Open in $EDITOR
   {cyan-fg}→{/cyan-fg}             Copy public URL
   {cyan-fg}←{/cyan-fg}             Copy entry URL
   {cyan-fg}s{/cyan-fg} {cyan-fg}/{/cyan-fg}          Search

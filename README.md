@@ -202,6 +202,7 @@ See [INTEGRATIONS.md](./docs/INTEGRATIONS.md) for detailed setup instructions.
 - `→`: Copy public URL to clipboard
 - `←`: Copy entry URL to clipboard
 - `Space`: Open entry in browser
+- `e`: Open entry in $EDITOR (nvim/vim/etc)
 - `z`: Toggle full-screen summary view
 - `/` or `s`: Search entries
 - `r`: Refresh entries

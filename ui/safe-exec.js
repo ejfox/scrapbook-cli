@@ -133,6 +133,81 @@ export function openUrl(url) {
 }
 
 /**
+ * Open scrap content in external editor (nvim/vim/etc)
+ * @param {Object} scrap - The scrap to edit
+ * @param {Object} screen - Blessed screen to suspend/resume
+ * @returns {Promise<void>}
+ */
+export function openInEditor(scrap, screen) {
+  return new Promise((resolve, reject) => {
+    import('fs').then(fs => {
+      import('os').then(os => {
+        import('path').then(path => {
+          // Get editor from environment or fallback
+          const editor = process.env.EDITOR || process.env.VISUAL || 'nvim';
+
+          // Create temp file with scrap content
+          const tmpDir = os.tmpdir();
+          const tmpFile = path.join(tmpDir, `scrapbook-${scrap.scrap_id}.md`);
+
+          // Format scrap content as markdown
+          const content = [
+            `# ${scrap.title || '[no title]'}`,
+            '',
+            `**URL:** ${scrap.url || 'N/A'}`,
+            `**Source:** ${scrap.source || 'N/A'}`,
+            `**Created:** ${scrap.created_at}`,
+            `**Tags:** ${scrap.tags?.join(', ') || 'none'}`,
+            '',
+            '---',
+            '',
+            '## Summary',
+            '',
+            scrap.summary || 'No summary available',
+            '',
+            '## Content',
+            '',
+            scrap.content || 'No content available',
+          ].join('\n');
+
+          // Write temp file
+          fs.writeFileSync(tmpFile, content);
+
+          // Suspend blessed screen
+          screen.leave();
+
+          // Spawn editor
+          const editorProcess = spawn(editor, [tmpFile], {
+            stdio: 'inherit'
+          });
+
+          editorProcess.on('error', (err) => {
+            screen.enter();
+            screen.render();
+            reject(err);
+          });
+
+          editorProcess.on('close', (code) => {
+            // Resume blessed screen
+            screen.enter();
+            screen.render();
+
+            // Clean up temp file
+            try {
+              fs.unlinkSync(tmpFile);
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+
+            resolve();
+          });
+        });
+      });
+    });
+  });
+}
+
+/**
  * Safely copy text to clipboard
  * @param {string} text - The text to copy
  * @returns {Promise<void>}
