@@ -60,10 +60,13 @@ export function viewSummary(index, currentBookmarks, summaryBox, alertBox, miniM
   const metaSummary = bookmark.meta_summary || generateMetaSummary(bookmark);
   previewParts.push(`{yellow-fg}◈{/yellow-fg} ${metaSummary}\n`);
 
-  // Date and Source
+  // Date, Source, and Type
   const date = bookmark.created_at ? format(new Date(bookmark.created_at), "yyyy-MM-dd HH:mm") : "";
   const source = bookmark.source || "unknown";
-  previewParts.push(`\n{dim}${date} · ${source}{/dim}\n`);
+  const type = bookmark.type || bookmark.content_type || "";
+  const sourceType = type && type !== source ? `${source}/${type}` : source;
+  const sharedBadge = bookmark.shared ? " {green-fg}●{/green-fg}" : "";
+  previewParts.push(`\n{dim}${date} · ${sourceType}${sharedBadge}{/dim}\n`);
 
   // Quick stats
   const stats = [];
@@ -74,7 +77,10 @@ export function viewSummary(index, currentBookmarks, summaryBox, alertBox, miniM
     stats.push(`{magenta-fg}${bookmark.tags.length} tags{/magenta-fg}`);
   }
   if (bookmark.location && bookmark.location !== "Unknown") {
-    stats.push(`{blue-fg}📍 ${bookmark.location}{/blue-fg}`);
+    stats.push(`{blue-fg}@ ${bookmark.location}{/blue-fg}`);
+  }
+  if (bookmark.screenshot_url) {
+    stats.push(`{cyan-fg}img{/cyan-fg}`);
   }
   if (stats.length > 0) {
     previewParts.push(`\n${stats.join(" · ")}\n`);
@@ -827,11 +833,17 @@ export function toggleFullScreenSummary(summaryBox, bookmarks, selectedIndex) {
           ? "◉" // Big dot for content
           : key === "title"
             ? "❯" // Arrow for title
-            : key === "tags"
+            : key === "tags" || key === "concept_tags"
               ? "⊛" // Star for tags
-              : key === "url"
+              : key === "url" || key === "public_url"
                 ? "⌘" // Command symbol for URLs
-                : "•"; // Default bullet
+                : key === "screenshot_url"
+                  ? "◫" // Image frame for screenshots
+                  : key === "location"
+                    ? "@" // At symbol for location
+                    : key === "relationships"
+                      ? "⬡" // Hexagon for relationships
+                      : "•"; // Default bullet
 
       return `${marker} ${key}: ${displayValue}`;
     })

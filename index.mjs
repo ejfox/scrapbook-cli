@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { loadBookmarks, displayScrapJson, searchBookmarks, queryByEntity } from "./database.js";
+import { loadBookmarks, displayScrapJson, searchBookmarks, queryByEntity, formatBookmarksForFzf } from "./database.js";
 import { loadConfig } from "./config.js";
 import blessed from "blessed";
 import { createUI, setupKeyboardShortcuts, displayHelp } from "./tui.js";
@@ -228,22 +228,18 @@ program
 
     const { spawn } = await import("child_process");
 
-    // Format for fzf
-    const fzfLines = bookmarks.map((b, idx) => {
-      const date = format(new Date(b.created_at), "MM/dd/yy");
-      const source = (b.source || "?").padEnd(10);
-      const title = b.title || b.content?.substring(0, 60) || "[no title]";
-      return `${idx}\t${date} │ ${source} │ ${title}`;
-    });
+    // Use shared formatting method
+    const fzfInput = formatBookmarksForFzf(bookmarks);
 
     const fzf = spawn("fzf", [
+      "--ansi",
       "--delimiter=\t",
       "--with-nth=2..",
-      "--preview=echo {} | cut -f1 | xargs -I {} node index.mjs get $(node index.mjs list --jsonl 2>/dev/null | sed -n '{p}' | jq -r .scrap_id) 2>/dev/null",
-      "--preview-window=wrap:60%",
-      "--prompt=📚 Select bookmark > ",
+      "--prompt=Search > ",
       "--height=100%",
+      "--reverse",
       "--border",
+      "--info=inline",
     ], { stdio: ["pipe", "pipe", "inherit"] });
 
     let output = "";
@@ -271,7 +267,7 @@ program
       }
     });
 
-    fzf.stdin.write(fzfLines.join("\n"));
+    fzf.stdin.write(fzfInput);
     fzf.stdin.end();
   });
 
@@ -458,6 +454,93 @@ youtube
     loadConfig({ silent: true });
     const { showStats } = await import('./youtube.js');
     await showStats();
+  });
+
+// Stats command - quick overview of database
+program
+  .command("stats")
+  .description("Show database statistics and field coverage")
+  .option("--json", "Output as JSON")
+  .action(async (options) => {
+    loadConfig({ silent: true });
+    const bookmarks = await loadBookmarks();
+
+    const stats = {
+      total: bookmarks.length,
+      sources: {},
+      types: {},
+      withSummary: 0,
+      withRelationships: 0,
+      withLocation: 0,
+      withConceptTags: 0,
+      withScreenshot: 0,
+      shared: 0,
+      avgTags: 0,
+      avgRelationships: 0,
+    };
+
+    let totalTags = 0;
+    let totalRels = 0;
+
+    bookmarks.forEach(b => {
+      // Count by source
+      const src = b.source || "unknown";
+      stats.sources[src] = (stats.sources[src] || 0) + 1;
+
+      // Count by type
+      const type = b.content_type || b.type || "unknown";
+      stats.types[type] = (stats.types[type] || 0) + 1;
+
+      // Field coverage
+      if (b.summary) stats.withSummary++;
+      if (b.relationships?.length > 0) stats.withRelationships++;
+      if (b.location && b.location !== "Unknown") stats.withLocation++;
+      if (b.concept_tags?.length > 0) stats.withConceptTags++;
+      if (b.screenshot_url) stats.withScreenshot++;
+      if (b.shared) stats.shared++;
+
+      totalTags += b.tags?.length || 0;
+      totalRels += b.relationships?.length || 0;
+    });
+
+    stats.avgTags = (totalTags / bookmarks.length).toFixed(1);
+    stats.avgRelationships = (totalRels / bookmarks.length).toFixed(1);
+
+    if (options.json) {
+      console.log(JSON.stringify(stats, null, 2));
+    } else {
+      console.log(`\n📊 Scrapbook Stats\n`);
+      console.log(`Total: ${stats.total} scraps\n`);
+
+      console.log(`Sources:`);
+      Object.entries(stats.sources)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([src, count]) => {
+          const pct = ((count / stats.total) * 100).toFixed(1);
+          console.log(`  ${src}: ${count} (${pct}%)`);
+        });
+
+      console.log(`\nTypes:`);
+      Object.entries(stats.types)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .forEach(([type, count]) => {
+          const pct = ((count / stats.total) * 100).toFixed(1);
+          console.log(`  ${type}: ${count} (${pct}%)`);
+        });
+
+      console.log(`\nField Coverage:`);
+      console.log(`  Summary: ${stats.withSummary} (${((stats.withSummary / stats.total) * 100).toFixed(1)}%)`);
+      console.log(`  Relationships: ${stats.withRelationships} (${((stats.withRelationships / stats.total) * 100).toFixed(1)}%)`);
+      console.log(`  Location: ${stats.withLocation} (${((stats.withLocation / stats.total) * 100).toFixed(1)}%)`);
+      console.log(`  Concept Tags: ${stats.withConceptTags} (${((stats.withConceptTags / stats.total) * 100).toFixed(1)}%)`);
+      console.log(`  Screenshot: ${stats.withScreenshot} (${((stats.withScreenshot / stats.total) * 100).toFixed(1)}%)`);
+      console.log(`  Shared/Public: ${stats.shared}`);
+
+      console.log(`\nAverages:`);
+      console.log(`  Tags per scrap: ${stats.avgTags}`);
+      console.log(`  Relationships per scrap: ${stats.avgRelationships}`);
+    }
   });
 
 // Legacy json command (kept for backwards compatibility)

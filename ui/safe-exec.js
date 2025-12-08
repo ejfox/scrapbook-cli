@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { format } from "date-fns";
+import { formatBookmarksForFzf } from "../database.js";
 
 /**
  * Launch fzf with bookmark data and return selected index
@@ -12,31 +12,8 @@ export function launchFzf(bookmarks, screen) {
     // Suspend the blessed screen to give control to fzf
     screen.leave();
 
-    // Format bookmarks for fzf display
-    // Use tab-separated format: INDEX\tDISPLAY_LINE
-    const fzfLines = bookmarks.map((bookmark, idx) => {
-      const date = format(new Date(bookmark.created_at), "MM/dd/yy");
-      const source = bookmark.source || bookmark.content_type || "?";
-
-      // Get content preview
-      let content = "";
-      if (bookmark.meta_summary && bookmark.meta_summary !== "No summary available") {
-        content = bookmark.meta_summary;
-      } else if (bookmark.title && bookmark.title !== "[no title]") {
-        content = bookmark.title;
-      } else if (bookmark.content) {
-        content = bookmark.content.substring(0, 100);
-      }
-
-      // Clean content for display - remove tabs and newlines
-      content = content.replace(/[\t\n]/g, " ").substring(0, 80);
-
-      // Format: INDEX\tDATE | SOURCE | CONTENT (tab-separated for easy parsing)
-      const displayLine = `${date} │ ${source.padEnd(10)} │ ${content}`;
-      return `${idx}\t${displayLine}`;
-    });
-
-    const fzfInput = fzfLines.join("\n");
+    // Use shared formatting method
+    const fzfInput = formatBookmarksForFzf(bookmarks);
 
     // Spawn fzf with --delimiter and --with-nth to show only the display part
     const fzf = spawn("fzf", [

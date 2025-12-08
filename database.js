@@ -26,7 +26,7 @@ export async function loadBookmarks() {
 
   // Only fetch fields we actually use - exclude heavy embedding fields
   const selectFields = config.database?.default_select ||
-    "scrap_id,id,created_at,updated_at,source,content,url,title,tags,summary,meta_summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis";
+    "scrap_id,id,created_at,updated_at,source,type,content,url,title,tags,concept_tags,summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis,extraction_confidence,screenshot_url,shared";
 
   const { data, error } = await supabase
     .from(tableName)
@@ -70,36 +70,35 @@ export function formatTableData(bookmarks) {
             image: "", // nf-fa-image
             note: "", // nf-fa-sticky_note
             bookmark: "", // nf-fa-link
+            repo: "", // nf-fa-code_branch
+            status: "", // nf-fa-comment
+            block: "", // nf-fa-cube
+            tool: "", // nf-fa-wrench
+            reference: "", // nf-fa-book
+            tutorial: "", // nf-fa-graduation_cap
           };
 
-          const type = bookmark.content_type || bookmark.source || "?";
+          const type = bookmark.content_type || bookmark.type || bookmark.source || "?";
           const icon = indicators[type.toLowerCase()] || indicators[bookmark.source?.toLowerCase()] || "•";
 
-          // Count total metadata
+          // Count total metadata + indicators
           const tagCount = bookmark.tags?.length || 0;
           const relCount = bookmark.relationships?.length || 0;
           const totalMeta = tagCount + relCount;
 
-          // Show metadata count compactly
+          // Show metadata count and shared indicator
           const metaStr = totalMeta > 0 ? ` ${totalMeta}` : "";
-          return `${icon}${metaStr}`;
+          const sharedStr = bookmark.shared ? "●" : "";
+          return `${icon}${metaStr}${sharedStr}`;
         } else if (header === "content") {
           // Build information-dense content string
           const parts = [];
 
           // 1. Location first if available (most contextual)
-          // Parse location if it's JSON string
-          let location = bookmark.location;
-          if (location && location.startsWith("{")) {
-            try {
-              const locObj = JSON.parse(location);
-              location = locObj.location;
-            } catch (e) {
-              location = null;
-            }
-          }
+          // Location is now a plain string (legacy JSON format was migrated)
+          const location = bookmark.location;
 
-          if (location && location !== "Unknown" && location !== null) {
+          if (location && location !== "Unknown" && location !== "null") {
             const loc = location.length > 20
               ? location.substring(0, 18) + "…"
               : location;
@@ -165,7 +164,7 @@ export async function searchBookmarks(query) {
 
   // Use the same optimized field selection as loadBookmarks
   const selectFields = config.database?.default_select ||
-    "scrap_id,id,created_at,updated_at,source,content,url,title,tags,summary,meta_summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis";
+    "scrap_id,id,created_at,updated_at,source,type,content,url,title,tags,concept_tags,summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis,extraction_confidence,screenshot_url,shared";
 
   // Build case-insensitive pattern search across text columns only
   // Exclude JSONB columns like tags which need special handling
@@ -285,6 +284,79 @@ export function formatSummary(summary) {
   return cleaned.length > 100 ? cleaned.substring(0, 100) + "..." : cleaned;
 }
 
+/**
+ * Format a bookmark for fzf display
+ * Returns: { index, displayLine } or just displayLine if no index provided
+ */
+export function formatForFzf(bookmark, idx = null) {
+  const date = format(new Date(bookmark.created_at), "MM/dd");
+
+  // Type indicator
+  const typeIcons = {
+    video: "▶", article: "◇", bookmark: "◆", news: "▣",
+    repo: "⌥", status: "◈", block: "□", image: "◫",
+  };
+  const type = bookmark.content_type || bookmark.type || bookmark.source || "?";
+  const icon = typeIcons[type.toLowerCase()] || "•";
+
+  // Metadata indicators
+  const meta = [];
+  if (bookmark.relationships?.length > 0) meta.push(`${bookmark.relationships.length}⬡`);
+  if (bookmark.concept_tags?.length > 0) meta.push(`#${bookmark.concept_tags[0]}`);
+  else if (bookmark.tags?.length > 0) meta.push(`#${bookmark.tags[0]}`);
+  if (bookmark.location && bookmark.location !== "Unknown") {
+    let loc = bookmark.location;
+    // Parse if JSON
+    if (typeof loc === "string" && loc.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(loc);
+        loc = parsed.location; // might be null
+      } catch { }
+    }
+    if (loc && loc !== "Unknown" && loc !== "null") {
+      loc = loc.length > 12 ? loc.substring(0, 10) + "…" : loc;
+      meta.push(`@${loc}`);
+    }
+  }
+  if (bookmark.shared) meta.push("●");
+
+  // Content preview
+  let content = "";
+  if (bookmark.meta_summary && bookmark.meta_summary !== "No summary available") {
+    content = bookmark.meta_summary;
+  } else if (bookmark.title && bookmark.title !== "[no title]") {
+    content = stripMarkdown(bookmark.title);
+  } else if (bookmark.content) {
+    content = stripMarkdown(bookmark.content).substring(0, 80);
+  } else if (bookmark.url) {
+    try {
+      content = new URL(bookmark.url).hostname.replace(/^www\./, "");
+    } catch {
+      content = bookmark.url.substring(0, 40);
+    }
+  }
+
+  // Clean and truncate
+  content = content.replace(/[\t\n]/g, " ").trim();
+  const metaStr = meta.length > 0 ? ` ${meta.join(" ")}` : "";
+  const maxContent = 70 - metaStr.length;
+  if (content.length > maxContent) content = content.substring(0, maxContent - 1) + "…";
+
+  const displayLine = `${date} ${icon} ${content}${metaStr}`;
+
+  if (idx !== null) {
+    return `${idx}\t${displayLine}`;
+  }
+  return displayLine;
+}
+
+/**
+ * Format array of bookmarks for fzf (newline-separated, tab-indexed)
+ */
+export function formatBookmarksForFzf(bookmarks) {
+  return bookmarks.map((b, idx) => formatForFzf(b, idx)).join("\n");
+}
+
 export function formatContentType(contentType) {
   if (!contentType) return "";
   return contentType.toUpperCase();
@@ -390,7 +462,7 @@ export function generateMetaSummary(scrap) {
 export async function queryByEntity(entityName, options = {}) {
   const tableName = config.database?.table || "scraps";
   const selectFields = config.database?.default_select ||
-    "scrap_id,id,created_at,updated_at,source,content,url,title,tags,summary,meta_summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis";
+    "scrap_id,id,created_at,updated_at,source,type,content,url,title,tags,concept_tags,summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis,extraction_confidence,screenshot_url,shared";
 
   try {
     const { data, error } = await supabase

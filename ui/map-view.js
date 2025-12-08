@@ -42,48 +42,14 @@ export function createMapView(bookmarks) {
   // Filter bookmarks with location data - check top-level lat/lng fields
   const markers = bookmarks
     .filter((bookmark) => {
-      // Check top-level latitude/longitude first
-      if (bookmark.latitude && bookmark.longitude) {
-        return true;
-      }
-      // Check if location field has coordinates
-      if (bookmark.location) {
-        try {
-          const locationObj =
-            typeof bookmark.location === "string"
-              ? JSON.parse(bookmark.location)
-              : bookmark.location;
-          return locationObj.latitude && locationObj.longitude;
-        } catch {
-          return false;
-        }
-      }
-      return false;
+      // Coordinates are now in top-level latitude/longitude fields
+      // (location field is just a plain string name now)
+      return bookmark.latitude && bookmark.longitude;
     })
     .map((bookmark, index) => {
-      let lat, lon;
-
-      // Get coordinates from top-level fields first
-      if (bookmark.latitude && bookmark.longitude) {
-        lat = bookmark.latitude;
-        lon = bookmark.longitude;
-      } else if (bookmark.location) {
-        // Try to parse from location field
-        try {
-          const locationObj =
-            typeof bookmark.location === "string"
-              ? JSON.parse(bookmark.location)
-              : bookmark.location;
-          lat = locationObj.latitude;
-          lon = locationObj.longitude;
-        } catch {
-          return null;
-        }
-      }
-
       return {
-        lon: lon,
-        lat: lat,
+        lon: bookmark.longitude,
+        lat: bookmark.latitude,
         color: "green",
         char: "•",
         label: bookmark.scrap_id || bookmark.id,
