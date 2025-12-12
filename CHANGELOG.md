@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2025-12-12
+
+### Added
+
+#### YouTube Integration
+- **YouTube Watch Later Import**: New `youtube import` command to import your YouTube watch later playlist
+- **YouTube Enrichment**: AI-powered video enrichment using Claude Haiku API
+  - Automatic transcript extraction
+  - AI-generated summaries and key points
+  - Timeout protection for long-running operations
+- **YouTube Playlist Generator**: Generate yt-dlp compatible playlists filtered by entity or tag
+- **Whisper Transcription Support**: Automatic transcription workflow for video research
+
+#### Interactive Graph Explorer
+- **d3-force powered TUI**: New `graph` command for exploring entity relationships
+- **Interactive navigation**: Browse your knowledge graph with j/k/arrows
+- **Network expansion**: Press E to expand entity networks recursively
+- **Physics animation**: Toggle simulation with SPACE
+- **Entity listing**: Press L to see all scraps mentioning an entity
+
+#### Knowledge Graph
+- **Entity Query Command**: New `entity` command for knowledge graph queries
+- **Fuzzy matching**: Find entities even with partial names
+- **Connection mapping**: `--connections` flag to see entity relationships
+- **Graph output**: `--graph` flag for structured graph data
+
+#### Editor Integration
+- **New 'e' keybinding**: Open scraps directly in $EDITOR (nvim/vim/etc)
+- **Full data view**: Editor shows ALL scrap fields (except embeddings)
+- **Pin URL to summary**: URL now pinned to top of summary box for easy access
+
+### Changed
+- **Schema sync**: Updated to match scrapbook-core schema changes
+- **YouTube enrichment**: Switched to Claude Haiku API for speed and reliability
+
+### Fixed
+- Handle undefined relationship fields in entity queries
+- Improved entity query matching accuracy and data quality
+
+---
+
 ## [2.0.1] - 2025-12-03
 
 ### Changed
@@ -149,5 +190,7 @@ This release embraces the Unix philosophy: do one thing well, play nicely with o
 
 ---
 
+[3.0.0]: https://github.com/ejfox/scrapbook-cli/compare/v2.0.1...v3.0.0
+[2.0.1]: https://github.com/ejfox/scrapbook-cli/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/ejfox/scrapbook-cli/compare/v1.0.4...v2.0.0
 [1.0.4]: https://github.com/ejfox/scrapbook-cli/releases/tag/v1.0.4
