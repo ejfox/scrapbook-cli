@@ -1,0 +1,36 @@
+# scrapbook-cli Tips & Tricks
+
+## Quick Searches
+scrap search "term" --fzf | fzf  # Interactive fuzzy search
+
+## Extract Data
+scrap list --json | jq -r '.[].url'  # Get all URLs
+scrap list --json | jq -r '.[].title'  # Get all titles
+scrap search "tag" --json | jq -r '.[].url' | shuf -n 1  # Random result
+
+## Count & Analyze
+scrap list --json | jq 'length'  # Total bookmarks
+scrap list --json | jq 'group_by(.source) | map({source: .[0].source, count: length})'  # By source
+
+## Tags
+scrap list --json | jq -r '.[].tags[]' | sort | uniq  # All unique tags
+scrap list --json | jq -r '.[].tags[]' | sort | uniq -c | sort -rn | head -10  # Most common
+
+## Entity Queries
+scrap entity "Name" --json | jq '.total_scraps'  # Count mentions
+scrap entity "Name" --json | jq -r '.scraps[].title'  # Get related titles
+
+## Export
+scrap list --json > backup.json  # Full backup
+scrap list --jsonl > backup.jsonl  # JSONL backup
+scrap list --csv > export.csv  # CSV for spreadsheets
+
+## LLM Piping
+scrap search "term" --json | jq -r '.[] | .title' | llm "Summarize these"  # Analyze titles
+scrap list --json --limit 5 | jq -r '.[].summary' | llm "Extract themes"  # Analyze summaries
+scrap entity "Name" --json | jq -r '.scraps[].title' | llm "What topics?"  # Analyze entity
+
+## Dev Mode
+npm link  # Link dev version
+alias scrap="scrapbook-cli"  # Short alias
+scrap search "test"  # Uses local dev version
