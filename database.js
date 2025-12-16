@@ -893,6 +893,31 @@ export async function queryFinancialAssets(options = {}) {
       assets.forEach(asset => {
         const assetKey = asset.ticker || asset.symbol || 'UNKNOWN';
 
+        // Skip obviously invalid tickers
+        if (!assetKey || assetKey === 'UNKNOWN' || assetKey === 'N/A' || assetKey === 'OTHER') {
+          return;
+        }
+
+        // Skip multi-word tickers that are clearly not real symbols
+        if (assetKey.includes(' ') && assetKey.length > 20) {
+          return;
+        }
+
+        // Skip common non-ticker patterns and brand names that aren't public tickers
+        const invalidPatterns = [
+          'Medicaid', 'Medicare', 'Social Security', 'sector', 'industry', 'market', 'economy', 'government',
+          'ChatGPT', 'GLOCK', 'REMINGTON', 'DANIELDEFENSE', 'Ti-6Al-4V', 'PALLADIUM', 'ANDURIL', 'FIATY'
+        ];
+        if (invalidPatterns.some(word => assetKey.toLowerCase() === word.toLowerCase())) {
+          return;
+        }
+
+        // Only allow standard ticker format: 1-5 uppercase letters, optional numbers, or common forex (3 letters)
+        // Allow some 2-3 letter forex codes and standard stock tickers
+        if (!/^[A-Z0-9]{1,5}$/.test(assetKey)) {
+          return;
+        }
+
         // Filter by ticker if specified
         if (ticker && !assetKey.toLowerCase().includes(ticker.toLowerCase())) {
           return;
