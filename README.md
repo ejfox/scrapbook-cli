@@ -57,61 +57,120 @@ scrapbook-cli --map
 
 scrapbook-cli is designed as a good Unix citizen, outputting structured data that pipes perfectly with tools like `jq`, `fzf`, `llm`, and standard commands.
 
+#### Default Human-Readable Output
+
+All list and search commands output beautiful, human-readable formatting by default:
+
+```bash
+# Search (beautifully formatted by default)
+scrap search "ai"
+# Output:
+# 12/15 ◇ OpenAI announces GPT-4 Turbo
+#     OpenAI has released GPT-4 Turbo, a powerful new model with improved...
+#     https://openai.com/blog/gpt-4-turbo/
+#
+# 12/14 ▣ Deep Learning Fundamentals
+#     A comprehensive guide to deep learning principles and implementation...
+#     https://deeplearning.example.com
+#
+# 2 results found
+
+# List with human-readable format (default)
+scrap list --limit 5
+```
+
+#### Output Formats
+
+All commands support multiple output formats for piping:
+
+```bash
+# Human-readable (default - no flag needed)
+scrap search "kubernetes"
+
+# JSON (pretty-printed)
+scrap list --json
+
+# JSON Lines (one per line, great for streaming)
+scrap search "ai" --jsonl
+
+# TSV (tab-separated, easy to parse with cut/awk)
+scrap list --tsv
+
+# CSV (for spreadsheet analysis)
+scrap list --csv
+
+# fzf-compatible format (indexed, ready to pipe to fzf)
+scrap search "python" --fzf | fzf --preview 'scrap get {1}'
+
+# With result limiting
+scrap list --json --limit 10
+```
+
 #### List bookmarks
 
 ```bash
-# JSON (pretty-printed, default)
-scrapbook-cli list --json
+# Human-readable format (default)
+scrap list
 
-# JSON Lines (one per line, great for streaming)
-scrapbook-cli list --jsonl
+# Pretty JSON
+scrap list --json
 
-# TSV (tab-separated, easy to parse)
-scrapbook-cli list --tsv
+# One per line (for processing)
+scrap list --jsonl
 
-# CSV
-scrapbook-cli list --csv
+# Tab-separated (for parsing)
+scrap list --tsv
 
-# Limit results
-scrapbook-cli list --json --limit 10
+# CSV for Excel/spreadsheet
+scrap list --csv
+
+# Limit to 10 most recent
+scrap list --limit 10
+
+# Combine formats and limits
+scrap search "machine learning" --json --limit 5
 ```
 
 #### Search bookmarks
 
 ```bash
-# Search with JSON output
-scrapbook-cli search "election" --json
+# Human-readable search (default)
+scrap search "election"
 
-# Search with TSV
-scrapbook-cli search "kubernetes" --tsv
+# Search with specific output formats
+scrap search "kubernetes" --json
+scrap search "ai" --tsv
+scrap search "python" --csv
+scrap search "golang" --jsonl
 ```
 
 #### Get specific bookmark
 
 ```bash
-# Get full bookmark JSON
-scrapbook-cli get <scrap_id>
+# Get full bookmark as JSON
+scrap get <scrap_id>
 
 # Extract specific field (perfect for piping)
-scrapbook-cli get <scrap_id> --field url
-scrapbook-cli get <scrap_id> --field title
-scrapbook-cli get <scrap_id> --field tags
+scrap get <scrap_id> --field url
+scrap get <scrap_id> --field title
+scrap get <scrap_id> --field tags
+scrap get <scrap_id> --field summary
 ```
 
 #### Query knowledge graph by entity
 
 ```bash
 # Find all scraps mentioning an entity (with fuzzy matching)
-scrapbook-cli entity "Senator James Skoufis"
+scrap entity "Senator James Skoufis"
 
 # Output connections as JSON
-scrapbook-cli entity "New York Attorney General" --connections
+scrap entity "New York Attorney General" --connections
 
 # Output graph structure
-scrapbook-cli entity "Skoufis" --graph
+scrap entity "Skoufis" --graph
 
 # Full data output
-scrapbook-cli entity "Skoufis" --json
+scrap entity "Skoufis" --json
 ```
 
 #### Interactive graph explorer (Hacker Mode)
@@ -145,92 +204,207 @@ scrapbook-cli graph "Skoufis"
 # Press L to see which scraps mention the entity
 ```
 
-### Piping with jq
+### CLI Piping Recipes
+
+scrapbook-cli is designed to compose beautifully with Unix tools. Use `--json`, `--jsonl`, `--tsv`, `--csv`, or `--fzf` to integrate with your workflow.
+
+#### jq Recipes (JSON Parsing)
 
 ```bash
 # Get all titles
-scrapbook-cli list --json | jq -r '.[].title'
+scrap list --json | jq -r '.[].title'
 
-# Get URLs from pinboard bookmarks
-scrapbook-cli list --json | jq '.[] | select(.source == "pinboard") | .url'
+# Get URLs only
+scrap list --json | jq -r '.[].url'
+
+# Get bookmarks from pinboard source
+scrap list --json | jq '.[] | select(.source == "pinboard") | .url'
+
+# Get recent bookmarks from last 7 days
+scrap list --json | jq -r 'select(.created_at > "'$(date -v-7d +%Y-%m-%d)'") | .title'
 
 # Count bookmarks by source
-scrapbook-cli list --json | jq 'group_by(.source) | map({source: .[0].source, count: length})'
+scrap list --json | jq 'group_by(.source) | map({source: .[0].source, count: length})'
 
 # Get bookmarks with locations
-scrapbook-cli list --json | jq '.[] | select(.location != null) | {title, location, url}'
+scrap list --json | jq '.[] | select(.location != null) | {title, location, url}'
 
-# Extract tags
-scrapbook-cli list --json | jq '.[].tags[]' | sort | uniq
+# Extract all tags (unique)
+scrap list --json | jq -r '.[].tags[]' | sort | uniq
+
+# Get bookmarks with summaries
+scrap list --json | jq '.[] | select(.summary != null) | {title, summary}'
+
+# Build a markdown reading list
+scrap search "article" --json | jq -r '.[] | "- [\(.title)](\(.url))"'
+
+# Get entries with relationships
+scrap list --json | jq '.[] | select(.relationships | length > 0) | {title, relationship_count: (.relationships | length)}'
+
+# Find most common tags
+scrap list --json | jq -r '.[].tags[]' | sort | uniq -c | sort -rn | head -10
+
+# Get metadata summary
+scrap list --json | jq '{total: length, withSummary: map(select(.summary != null)) | length, withTags: map(select(.tags | length > 0)) | length}'
 ```
 
-### AI-Powered Analysis with `llm`
+#### fzf Integration (Interactive Selection)
 
 ```bash
-# Categorize bookmarks
-scrapbook-cli list --json --limit 10 | jq -r '.[].title' | \
-  llm -m gpt-4o-mini "Categorize these into 3-5 topic groups"
+# Interactive search with preview
+scrap search "python" --fzf | fzf --preview 'echo {} | cut -f2-'
 
-# Generate summary of recent bookmarks
-scrapbook-cli list --json --limit 5 | jq -r '.[].summary' | \
-  llm -m gpt-4o-mini "Create a brief digest of these bookmarks"
+# Select and open in browser
+scrap list --fzf | fzf | awk '{print $1}' | xargs -I {} scrap get {} --field url | xargs open
 
-# Extract key themes
-scrapbook-cli search "technology" --json | jq -r '.[].content' | \
-  llm -m gpt-4o-mini "What are the main themes in these tech bookmarks?"
+# Select and copy URL to clipboard
+scrap list --fzf | fzf | awk '{print $1}' | xargs -I {} scrap get {} --field url | pbcopy
 
-# Generate tags for untagged bookmarks
-scrapbook-cli list --json | jq '.[] | select(.tags | length == 0) | .content' | \
-  llm -m gpt-4o-mini "Suggest 3-5 tags for this content" -s "Output only tags, comma separated"
+# Select entry and view full details
+scrap list --fzf | fzf | awk '{print $1}' | xargs -I {} scrap get {}
 
-# Compare bookmarks
-scrapbook-cli get <id1> | jq '.summary' > /tmp/a.txt
-scrapbook-cli get <id2> | jq '.summary' > /tmp/b.txt
-cat /tmp/a.txt /tmp/b.txt | llm "Compare these two bookmarks. What are the connections?"
+# Fuzzy find with live preview of URLs
+scrap list --fzf | fzf --preview 'echo {} | cut -f1 | xargs -I ID scrap get ID --field url'
+
+# Multi-select bookmarks for bulk export
+scrap search "research" --fzf | fzf -m | awk '{print $1}' | xargs -I {} scrap get {} --json > research-batch.json
 ```
 
-### Classic Unix Tools
+#### TSV/CSV Parsing (awk, cut, sed)
 
 ```bash
-# Get URLs from TSV (8th column)
-scrapbook-cli list --tsv | cut -f8 | tail -n +2
+# Get all URLs (TSV format)
+scrap list --tsv | cut -f8 | tail -n +2
 
-# Filter by source with awk
-scrapbook-cli list --tsv | awk -F'\t' '$6 == "pinboard"'
+# Filter by source (TSV)
+scrap list --tsv | awk -F'\t' '$6 == "pinboard"'
 
 # Count by source
-scrapbook-cli list --tsv | cut -f6 | sort | uniq -c | sort -rn
+scrap list --tsv | cut -f6 | sort | uniq -c | sort -rn
 
-# Search with grep
-scrapbook-cli list --tsv | grep -i "kubernetes"
+# Search and count by type
+scrap search "kubernetes" --tsv | cut -f5 | sort | uniq -c
 
-# Get a random bookmark URL
-scrapbook-cli list --json | jq -r '.[].url' | shuf -n 1
-```
+# Extract title and URL pairs
+scrap list --tsv | cut -f3,8 | column -t
 
-### Power User Workflows
+# Find entries with specific tags (TSV)
+scrap list --tsv | grep "machine.learning"
 
-```bash
-# Open random bookmark in browser
-scrapbook-cli list --json | jq -r '.[].url' | shuf -n 1 | xargs open
-
-# Build a reading list
-scrapbook-cli search "article" --json | \
-  jq -r '.[] | "- [\(.title)](\(.url))"' > reading-list.md
+# Get random bookmark
+scrap list --json | jq -r '.[].url' | shuf -n 1
 
 # Export to CSV for spreadsheet analysis
-scrapbook-cli list --csv > bookmarks.csv
-
-# Chain search -> filter -> extract -> open
-scrapbook-cli search "tent camping" --json | \
-  jq -r '.[] | select(.tags | contains(["outdoor"])) | .url' | head -1 | xargs open
-
-# Find bookmarks from last week
-scrapbook-cli list --jsonl | \
-  jq -r 'select(.created_at > "'$(date -v-7d +%Y-%m-%d)'") | .title'
+scrap list --csv > bookmarks.csv
 ```
 
-See [CLI-EXAMPLES.md](./docs/CLI-EXAMPLES.md) for more advanced usage patterns.
+#### Search & Chain Operations
+
+```bash
+# Search -> filter -> extract -> open
+scrap search "camping" --json | \
+  jq '.[] | select(.tags | contains(["outdoor"]))' | \
+  jq -r '.url' | head -1 | xargs open
+
+# Find all mentions of entity, extract titles
+scrap entity "OpenAI" --json | jq -r '.scraps[].title'
+
+# Get all scraps for an entity as JSON
+scrap entity "Claude" --json | jq '.scraps' > claude-mentions.json
+
+# Export knowledge graph as DOT format (for graphviz)
+scrap entity "Tesla" --graph | jq -r '.edges[] | "\(.source) -> \(.target) [\(.relationship)]"'
+
+# Chain: search -> find relationships -> list connected entities
+scrap search "AI" --json | jq '.[0].relationships[] | .target' | sort | uniq
+```
+
+#### Bulk Operations
+
+```bash
+# Export entire library as JSON
+scrap list --json > my-scrapbook.json
+
+# Export as CSV for analysis
+scrap list --csv > scrapbook.csv
+
+# Backup to JSONL (one record per line)
+scrap list --jsonl > scrapbook-backup.jsonl
+
+# Create a dated backup
+scrap list --json > "scrapbook-$(date +%Y-%m-%d).json"
+
+# Count total bookmarks
+scrap list --json | jq 'length'
+
+# Get stats: count by source and type
+scrap list --json | jq 'group_by(.source) | map({source: .[0].source, count: length, types: (map(.content_type) | unique)})'
+
+# Export URLs only (one per line)
+scrap list --json | jq -r '.[].url' > all-urls.txt
+```
+
+#### Integration with Other Tools
+
+```bash
+# Pipe to llm for analysis
+scrap list --json --limit 5 | jq -r '.[].summary' | \
+  llm -m gpt-4o-mini "Summarize these bookmarks into 3-5 topics"
+
+# Generate tags for untagged bookmarks
+scrap list --json | jq '.[] | select(.tags | length == 0) | .title' | \
+  llm -m gpt-4o-mini "Suggest 3 tags for this"
+
+# Get content, pipe to llm for analysis
+scrap search "technology" --json | jq -r '.[].content' | \
+  llm -m gpt-4o-mini "What are the main themes?"
+
+# Compare two bookmarks
+(scrap get <id1> --field summary && scrap get <id2> --field summary) | \
+  llm "Compare these two pieces of content"
+
+# Generate reading list with descriptions
+scrap search "research" --json | jq -r '.[] | "- [\(.title)](\(.url)) - \(.summary | split("\n") | .[0])"' > reading-list.md
+
+# Create a wall of text from all summaries
+scrap list --json | jq -r '.[].summary' | tr '\n' ' ' | xargs -0 echo
+
+# Find trending topics (most mentioned concept tags)
+scrap list --json | jq -r '.[].concept_tags[]' | sort | uniq -c | sort -rn | head -20
+```
+
+#### Data Export & Migration
+
+```bash
+# Export to a different format
+scrap list --json > bookmarks.json
+jq '.' bookmarks.json | csvkit json2csv -o bookmarks.csv
+
+# Create a Roam Research import format
+scrap list --json | jq -r '.[] | "- [[[\(.title)]]] \(.url)\n  tags:: \(.tags | join(", "))"'
+
+# Create a Logseq markdown export
+scrap list --json | jq -r '.[] | "## \(.title)\n- URL: \(.url)\n- Tags: \(.tags | join(", "))\n- Summary: \(.summary)\n"' > logseq-export.md
+
+# Create a JSON feed
+scrap list --json | jq '{version: "https://jsonfeed.org/version/1.1", title: "My Scrapbook", items: [.[] | {id: .scrap_id, title, summary, url, date_published: .created_at}]}'
+```
+
+#### Setup (Alias & Dev Mode)
+
+If you're developing scrapbook-cli, you can set up a dev alias:
+
+```bash
+# Link to your local development version
+cd /path/to/scrapbook-cli
+npm link
+
+# Create a short alias in ~/.zshrc or ~/.bashrc
+alias scrap="scrapbook-cli"
+
+# Now all changes to the code are immediately available
+scrap search "test"  # Uses your local dev version
+```
 
 ### YouTube Playlist & Transcription Workflows
 

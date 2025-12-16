@@ -58,6 +58,72 @@ function outputCSV(data) {
   });
 }
 
+function outputHumanReadable(data) {
+  if (!data || data.length === 0) {
+    console.log("No results found");
+    return;
+  }
+
+  data.forEach((item, index) => {
+    const date = format(new Date(item.created_at), "MM/dd");
+
+    // Type icon
+    const typeIcons = {
+      video: "▶", article: "◇", bookmark: "◆", news: "▣",
+      repo: "⌥", status: "◈", block: "□", image: "◫", youtube: "▶"
+    };
+    const type = item.content_type || item.type || item.source || "?";
+    const icon = typeIcons[type.toLowerCase()] || "•";
+
+    // Title or content preview
+    let title = item.title && item.title !== "[no title]"
+      ? item.title
+      : (item.meta_summary || item.content || "[no title]");
+
+    // Strip markdown and truncate
+    const stripMarkdown = (text) => {
+      if (!text) return "";
+      return text
+        .replace(/^#{1,6}\s+/gm, "")
+        .replace(/\*\*(.+?)\*\*/g, "$1")
+        .replace(/\*(.+?)\*/g, "$1")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/```[\s\S]*?```/g, "")
+        .trim();
+    };
+
+    title = stripMarkdown(title);
+    if (title.length > 70) title = title.substring(0, 67) + "…";
+
+    // Summary snippet
+    let summary = item.summary ? stripMarkdown(item.summary) : "";
+    summary = summary.replace(/\n/g, " ").trim();
+    if (summary.length > 100) summary = summary.substring(0, 97) + "…";
+
+    // Tags display
+    const tags = item.tags && item.tags.length > 0 ? item.tags.slice(0, 2).join(", ") : "";
+    const tagStr = tags ? ` #${tags}` : "";
+
+    // URL
+    const urlStr = item.url ? ` ${item.url}` : "";
+
+    // Main line: date + icon + title
+    console.log(`\n${date} ${icon} ${title}${tagStr}`);
+
+    // Summary line if available
+    if (summary) {
+      console.log(`    ${summary}`);
+    }
+
+    // URL if available
+    if (item.url) {
+      console.log(`    ${item.url}`);
+    }
+  });
+
+  console.log(`\n${data.length} result${data.length !== 1 ? "s" : ""} found`);
+}
+
 async function showLoadingScreen() {
   const screen = blessed.screen({
     smartCSR: true,
@@ -279,6 +345,7 @@ program
   .option("--jsonl", "Output as JSON Lines (one per line)")
   .option("--tsv", "Output as TSV (tab-separated values)")
   .option("--csv", "Output as CSV")
+  .option("--fzf", "Output in fzf-compatible format for piping")
   .option("-l, --limit <n>", "Limit number of results", parseInt)
   .action(async (options) => {
     loadConfig({ silent: true });
@@ -294,9 +361,12 @@ program
       outputTSV(limited);
     } else if (options.csv) {
       outputCSV(limited);
+    } else if (options.fzf) {
+      const { formatBookmarksForFzf } = await import("./database.js");
+      console.log(formatBookmarksForFzf(limited));
     } else {
-      // Default: pretty list
-      outputJSON(limited);
+      // Default: human-readable list
+      outputHumanReadable(limited);
     }
   });
 
@@ -308,6 +378,7 @@ program
   .option("--jsonl", "Output as JSON Lines")
   .option("--tsv", "Output as TSV")
   .option("--csv", "Output as CSV")
+  .option("--fzf", "Output in fzf-compatible format for piping")
   .action(async (query, options) => {
     loadConfig({ silent: true });
     const results = await searchBookmarks(query);
@@ -320,8 +391,11 @@ program
       outputTSV(results);
     } else if (options.csv) {
       outputCSV(results);
+    } else if (options.fzf) {
+      const { formatBookmarksForFzf } = await import("./database.js");
+      console.log(formatBookmarksForFzf(results));
     } else {
-      outputJSON(results);
+      outputHumanReadable(results);
     }
   });
 
