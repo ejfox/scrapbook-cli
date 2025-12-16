@@ -220,20 +220,11 @@ scrap list --json | jq -r '.[].url'
 # Get bookmarks from pinboard source
 scrap list --json | jq '.[] | select(.source == "pinboard") | .url'
 
-# Get recent bookmarks from last 7 days
-scrap list --json | jq -r 'select(.created_at > "'$(date -v-7d +%Y-%m-%d)'") | .title'
-
 # Count bookmarks by source
 scrap list --json | jq 'group_by(.source) | map({source: .[0].source, count: length})'
 
-# Get bookmarks with locations
-scrap list --json | jq '.[] | select(.location != null) | {title, location, url}'
-
 # Extract all tags (unique)
 scrap list --json | jq -r '.[].tags[]' | sort | uniq
-
-# Get bookmarks with summaries
-scrap list --json | jq '.[] | select(.summary != null) | {title, summary}'
 
 # Build a markdown reading list
 scrap search "article" --json | jq -r '.[] | "- [\(.title)](\(.url))"'
@@ -244,8 +235,8 @@ scrap list --json | jq '.[] | select(.relationships | length > 0) | {title, rela
 # Find most common tags
 scrap list --json | jq -r '.[].tags[]' | sort | uniq -c | sort -rn | head -10
 
-# Get metadata summary
-scrap list --json | jq '{total: length, withSummary: map(select(.summary != null)) | length, withTags: map(select(.tags | length > 0)) | length}'
+# Get random bookmark
+scrap list --json | jq -r '.[].url' | shuf -n 1
 ```
 
 #### fzf Integration (Interactive Selection)
@@ -270,65 +261,36 @@ scrap list --fzf | fzf --preview 'echo {} | cut -f1 | xargs -I ID scrap get ID -
 scrap search "research" --fzf | fzf -m | awk '{print $1}' | xargs -I {} scrap get {} --json > research-batch.json
 ```
 
-#### TSV/CSV Parsing (awk, cut, sed)
+#### CSV Export
 
 ```bash
-# Get all URLs (TSV format)
-scrap list --tsv | cut -f8 | tail -n +2
-
-# Filter by source (TSV)
-scrap list --tsv | awk -F'\t' '$6 == "pinboard"'
-
-# Count by source
-scrap list --tsv | cut -f6 | sort | uniq -c | sort -rn
-
-# Search and count by type
-scrap search "kubernetes" --tsv | cut -f5 | sort | uniq -c
-
-# Extract title and URL pairs
-scrap list --tsv | cut -f3,8 | column -t
-
-# Find entries with specific tags (TSV)
-scrap list --tsv | grep "machine.learning"
-
-# Get random bookmark
-scrap list --json | jq -r '.[].url' | shuf -n 1
-
 # Export to CSV for spreadsheet analysis
 scrap list --csv > bookmarks.csv
+
+# Export search results to CSV
+scrap search "python" --csv > python-bookmarks.csv
 ```
 
-#### Search & Chain Operations
+#### Search & Entity Operations
 
 ```bash
-# Search -> filter -> extract -> open
-scrap search "camping" --json | \
-  jq '.[] | select(.tags | contains(["outdoor"]))' | \
-  jq -r '.url' | head -1 | xargs open
-
 # Find all mentions of entity, extract titles
 scrap entity "OpenAI" --json | jq -r '.scraps[].title'
 
 # Get all scraps for an entity as JSON
 scrap entity "Claude" --json | jq '.scraps' > claude-mentions.json
 
-# Export knowledge graph as DOT format (for graphviz)
-scrap entity "Tesla" --graph | jq -r '.edges[] | "\(.source) -> \(.target) [\(.relationship)]"'
-
-# Chain: search -> find relationships -> list connected entities
-scrap search "AI" --json | jq '.[0].relationships[] | .target' | sort | uniq
+# Get entity connection count
+scrap entity "Tesla" --json | jq '.total_scraps'
 ```
 
-#### Bulk Operations
+#### Bulk Operations & Backup
 
 ```bash
 # Export entire library as JSON
 scrap list --json > my-scrapbook.json
 
-# Export as CSV for analysis
-scrap list --csv > scrapbook.csv
-
-# Backup to JSONL (one record per line)
+# Backup to JSONL (one record per line, better for version control)
 scrap list --jsonl > scrapbook-backup.jsonl
 
 # Create a dated backup
@@ -337,57 +299,41 @@ scrap list --json > "scrapbook-$(date +%Y-%m-%d).json"
 # Count total bookmarks
 scrap list --json | jq 'length'
 
-# Get stats: count by source and type
-scrap list --json | jq 'group_by(.source) | map({source: .[0].source, count: length, types: (map(.content_type) | unique)})'
+# Get stats: count by source
+scrap list --json | jq 'group_by(.source) | map({source: .[0].source, count: length})'
 
 # Export URLs only (one per line)
 scrap list --json | jq -r '.[].url' > all-urls.txt
+
+# Export titles only
+scrap list --json | jq -r '.[].title' > all-titles.txt
 ```
 
-#### Integration with Other Tools
+#### LLM-Ready Output (Pipe to External Tools)
+
+scrapbook-cli outputs are optimized for piping to external LLM CLI tools like `llm`, `gpt-cli`, etc.
 
 ```bash
-# Pipe to llm for analysis
-scrap list --json --limit 5 | jq -r '.[].summary' | \
-  llm -m gpt-4o-mini "Summarize these bookmarks into 3-5 topics"
+# Pipe summaries to llm for analysis
+scrap list --json --limit 10 | jq -r '.[].summary' | llm -m gpt-4o-mini "Summarize these into 3-5 topics"
 
-# Generate tags for untagged bookmarks
-scrap list --json | jq '.[] | select(.tags | length == 0) | .title' | \
-  llm -m gpt-4o-mini "Suggest 3 tags for this"
+# Analyze search results
+scrap search "climate" --json | jq -r '.[] | "\(.title): \(.summary)"' | llm "Extract main policy proposals"
 
-# Get content, pipe to llm for analysis
-scrap search "technology" --json | jq -r '.[].content' | \
-  llm -m gpt-4o-mini "What are the main themes?"
+# Generate tags from titles
+scrap list --json | jq -r '.[] | select(.tags | length == 0) | .title' | llm "Suggest 3 tags for each"
 
-# Compare two bookmarks
-(scrap get <id1> --field summary && scrap get <id2> --field summary) | \
-  llm "Compare these two pieces of content"
+# Extract themes from content
+scrap search "technology" --json | jq -r '.[].content' | llm "List the main technical themes"
 
-# Generate reading list with descriptions
-scrap search "research" --json | jq -r '.[] | "- [\(.title)](\(.url)) - \(.summary | split("\n") | .[0])"' > reading-list.md
+# Analyze entity relationships
+scrap entity "OpenAI" --json | jq -r '.scraps[].title' | llm "What are the main topics?"
 
-# Create a wall of text from all summaries
-scrap list --json | jq -r '.[].summary' | tr '\n' ' ' | xargs -0 echo
+# Create reading list with AI summaries
+scrap search "research" --json | jq -r '.[] | .title' | llm "Rank these by importance"
 
-# Find trending topics (most mentioned concept tags)
-scrap list --json | jq -r '.[].concept_tags[]' | sort | uniq -c | sort -rn | head -20
-```
-
-#### Data Export & Migration
-
-```bash
-# Export to a different format
-scrap list --json > bookmarks.json
-jq '.' bookmarks.json | csvkit json2csv -o bookmarks.csv
-
-# Create a Roam Research import format
-scrap list --json | jq -r '.[] | "- [[[\(.title)]]] \(.url)\n  tags:: \(.tags | join(", "))"'
-
-# Create a Logseq markdown export
-scrap list --json | jq -r '.[] | "## \(.title)\n- URL: \(.url)\n- Tags: \(.tags | join(", "))\n- Summary: \(.summary)\n"' > logseq-export.md
-
-# Create a JSON feed
-scrap list --json | jq '{version: "https://jsonfeed.org/version/1.1", title: "My Scrapbook", items: [.[] | {id: .scrap_id, title, summary, url, date_published: .created_at}]}'
+# Compare bookmarks
+(scrap get <id1> --field summary && echo "---" && scrap get <id2> --field summary) | llm "Compare these concepts"
 ```
 
 #### Setup (Alias & Dev Mode)
