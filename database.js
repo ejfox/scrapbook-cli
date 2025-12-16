@@ -571,7 +571,7 @@ export async function queryByEntity(entityName, options = {}) {
  * Query scraps by entity name with depth-based traversal
  * Explores N hops away from the initial entity through relationship chains
  */
-export async function queryByEntityWithDepth(entityName, depth = 1) {
+export async function queryByEntityWithDepth(entityName, depth = 1, maxScraps = 5000) {
   const tableName = config.database?.table || "scraps";
   const selectFields = config.database?.default_select ||
     "scrap_id,id,created_at,updated_at,source,type,content,url,title,tags,concept_tags,summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis,extraction_confidence,screenshot_url,shared";
@@ -596,23 +596,39 @@ export async function queryByEntityWithDepth(entityName, depth = 1) {
       return queryByEntity(entityName);
     }
 
-    // Multi-depth traversal
+    // Multi-depth traversal with safeguards
     const normalizedQuery = entityName.toLowerCase().trim();
     const entityDepthMap = new Map(); // entity -> depth level
     const allRelationships = new Map(); // entity -> array of relationship objects
     const allScraps = new Map(); // scrap_id -> scrap object
     const relatedEntities = new Set(); // Track all entities found
+    const MAX_ENTITIES_PER_DEPTH = 500; // Prevent explosion of entities
 
     // Initialize with query entity
     entityDepthMap.set(normalizedQuery, 0);
 
-    // BFS traversal through depths
+    // BFS traversal through depths with safeguards
     for (let currentDepth = 1; currentDepth <= depth; currentDepth++) {
+      // Early exit if we're hitting limits
+      if (allScraps.size > maxScraps) {
+        break;
+      }
+
       const entitiesToExplore = Array.from(entityDepthMap.entries())
         .filter(([_, d]) => d === currentDepth - 1)
         .map(([entity]) => entity);
 
+      // If entity growth is too aggressive, stop exploring
+      if (entityDepthMap.size > 10000) {
+        break;
+      }
+
       for (const searchEntity of entitiesToExplore) {
+        // Stop if we've hit max scraps
+        if (allScraps.size > maxScraps) {
+          break;
+        }
+
         // Find all scraps mentioning this entity
         const mentioningScraps = data.filter(scrap => {
           if (!scrap.relationships || !Array.isArray(scrap.relationships)) return false;

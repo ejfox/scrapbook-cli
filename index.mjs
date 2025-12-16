@@ -415,6 +415,7 @@ program
   .command("entity <name>")
   .description("Query knowledge graph by entity name")
   .option("--depth <n>", "Traverse N levels deep", parseInt)
+  .option("--limit <n>", "Max scraps to load (prevents timeout on massive entities)", parseInt, 5000)
   .option("--json", "Output full data as JSON")
   .option("--graph", "Output graph structure only")
   .option("--connections", "Show connections only")
@@ -423,10 +424,11 @@ program
     try {
       // Default depth to 1 if not specified
       const depth = options.depth ? parseInt(options.depth) : 1;
+      const maxScraps = options.limit || 5000;
 
       // Use depth traversal for depth > 1, otherwise use standard query
       const result = depth > 1
-        ? await queryByEntityWithDepth(name, depth)
+        ? await queryByEntityWithDepth(name, depth, maxScraps)
         : await queryByEntity(name);
 
       if (options.graph) {
