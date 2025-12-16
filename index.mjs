@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { loadBookmarks, displayScrapJson, searchBookmarks, queryByEntity, queryByEntityWithDepth, formatBookmarksForFzf } from "./database.js";
+import { loadBookmarks, displayScrapJson, searchBookmarks, queryByEntity, queryByEntityWithDepth, formatBookmarksForFzf, queryFinancialAssets } from "./database.js";
 import { loadConfig } from "./config.js";
 import blessed from "blessed";
 import { createUI, setupKeyboardShortcuts, displayHelp } from "./tui.js";
@@ -630,6 +630,67 @@ program
       console.log(`\nAverages:`);
       console.log(`  Tags per scrap: ${stats.avgTags}`);
       console.log(`  Relationships per scrap: ${stats.avgRelationships}`);
+    }
+  });
+
+// Financial analysis command
+program
+  .command("financial")
+  .description("Query financial assets and sentiment analysis from scraped content")
+  .option("--ticker <symbol>", "Filter by ticker symbol")
+  .option("--sentiment-min <value>", "Minimum sentiment score (-1 to 1)", parseFloat)
+  .option("--sentiment-max <value>", "Maximum sentiment score (-1 to 1)", parseFloat)
+  .option("--tracked", "Show only tracked assets")
+  .option("--json", "Output as JSON")
+  .option("--jsonl", "Output as JSON Lines")
+  .option("--csv", "Output as CSV")
+  .option("--tsv", "Output as TSV")
+  .action(async (options) => {
+    loadConfig({ silent: true });
+    try {
+      const assets = await queryFinancialAssets({
+        ticker: options.ticker,
+        sentiment_min: options.sentimentMin,
+        sentiment_max: options.sentimentMax,
+        tracked_only: options.tracked,
+        verbose: options.debug
+      });
+
+      if (options.json) {
+        outputJSON(assets);
+      } else if (options.jsonl) {
+        outputJSONL(assets);
+      } else if (options.csv) {
+        outputCSV(assets);
+      } else if (options.tsv) {
+        outputTSV(assets);
+      } else {
+        // Human-readable format
+        if (assets.length === 0) {
+          console.log("No financial assets found");
+          return;
+        }
+
+        console.log(`\n💰 Financial Assets (${assets.length} unique)\n`);
+        assets.forEach(asset => {
+          const sentimentBar = asset.avg_sentiment > 0
+            ? `📈 +${asset.avg_sentiment.toFixed(2)}`
+            : asset.avg_sentiment < 0
+            ? `📉 ${asset.avg_sentiment.toFixed(2)}`
+            : `➡️  ${asset.avg_sentiment.toFixed(2)}`;
+
+          console.log(`${asset.ticker.padEnd(8)} ${asset.name || 'Unknown'}`);
+          console.log(`  Mentions: ${asset.mention_count} | Sentiment: ${sentimentBar} (${asset.min_sentiment.toFixed(2)}~${asset.max_sentiment.toFixed(2)})`);
+          console.log(`  Type: ${asset.asset_type}`);
+          if (asset.scraps.length > 0) {
+            console.log(`  Latest: ${asset.scraps[0].title?.substring(0, 60) || 'Untitled'}${asset.scraps[0].title?.length > 60 ? '…' : ''}`);
+          }
+          console.log();
+        });
+      }
+    } catch (error) {
+      console.error("Error querying financial assets:", error.message);
+      process.exit(1);
     }
   });
 

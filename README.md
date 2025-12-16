@@ -204,6 +204,59 @@ scrapbook-cli graph "Skoufis"
 # Press L to see which scraps mention the entity
 ```
 
+#### Financial analysis and sentiment tracking
+
+Query financial assets mentioned in your scraps with automatic ticker extraction and sentiment analysis:
+
+```bash
+# View all discovered financial assets and their sentiment
+scrap financial
+
+# Filter by ticker symbol
+scrap financial --ticker PLTR
+
+# Filter by sentiment range (-1 to 1, where -1 is very negative, 1 is very positive)
+scrap financial --sentiment-min 0.5  # Only positive assets
+scrap financial --sentiment-max -0.3 # Only negative assets
+
+# Show only tracked assets (vs discovered)
+scrap financial --tracked
+
+# Output as JSON for piping
+scrap financial --json
+scrap financial --jsonl
+scrap financial --csv
+scrap financial --tsv
+```
+
+Example output:
+```
+💰 Financial Assets (49 unique)
+
+PLTR     Palantir Technologies Inc.
+  Mentions: 7 | Sentiment: 📉 -0.06 (-0.80~0.80)
+  Type: stock
+  Latest: The most dangerous man in America isn't Trump—it's Alex Karp
+
+OPENAI   OpenAI
+  Mentions: 3 | Sentiment: 📈 +0.47 (0.40~0.50)
+  Type: private_company
+  Latest: Five news orgs join Lenfest AI Collaborative...
+
+MNMD     MindMed Inc.
+  Mentions: 1 | Sentiment: 📈 +0.70 (0.70~0.70)
+  Type: stock
+  Latest: A Startup Used AI to Make a Psychedelic Without the Trip...
+```
+
+Each asset shows:
+- **Ticker**: Stock symbol or unique identifier
+- **Name**: Company or asset name
+- **Mentions**: How many times mentioned across your scraps
+- **Sentiment**: Average sentiment with range (min~max)
+- **Type**: Asset type (stock, private_company, forex, crypto, etc.)
+- **Latest**: Most recent article mentioning this asset
+
 ### CLI Piping Recipes
 
 scrapbook-cli is designed to compose beautifully with Unix tools. Use `--json`, `--jsonl`, `--tsv`, `--csv`, or `--fzf` to integrate with your workflow.
@@ -334,6 +387,40 @@ scrap search "research" --json | jq -r '.[] | .title' | llm "Rank these by impor
 
 # Compare bookmarks
 (scrap get <id1> --field summary && echo "---" && scrap get <id2> --field summary) | llm "Compare these concepts"
+```
+
+#### Financial Analysis Recipes
+
+```bash
+# Get all tickers with their sentiment scores
+scrap financial --json | jq -r '.[] | "\(.ticker): \(.avg_sentiment | tostring)"'
+
+# Find assets with very negative sentiment (below -0.5)
+scrap financial --json | jq '.[] | select(.avg_sentiment < -0.5) | {ticker, name, sentiment: .avg_sentiment}'
+
+# Count assets by type
+scrap financial --json | jq 'group_by(.asset_type) | map({type: .[0].asset_type, count: length})'
+
+# Get most mentioned assets
+scrap financial --json | jq 'sort_by(.mention_count) | reverse | .[0:10] | .[] | {ticker, name, mentions: .mention_count}'
+
+# Find assets mentioned only once (emerging/niche topics)
+scrap financial --json | jq '.[] | select(.mention_count == 1) | {ticker, name}'
+
+# Export sentiment timeline for a ticker
+scrap financial --json | jq '.[] | select(.ticker == "PLTR") | .scraps[] | {date: .created_at, sentiment: .sentiment_score, title}'
+
+# Compare sentiment across multiple assets
+scrap financial --json | jq '[.[] | select(.ticker == "PLTR" or .ticker == "OPENAI") | {ticker, avg_sentiment}]'
+
+# Find articles mentioning an asset with the most negative context
+scrap financial --ticker PLTR --json | jq '.[] | .scraps | min_by(.sentiment_score) | {title, url, sentiment: .sentiment_score}'
+
+# Analyze asset concentration (how diversified your financial discussion is)
+scrap financial --json | jq '{total_mentions: map(.mention_count) | add, unique_assets: length, concentration: (map(.mention_count) | max)}'
+
+# Export as CSV for spreadsheet analysis
+scrap financial --csv > financial-sentiment-analysis.csv
 ```
 
 #### Setup (Alias & Dev Mode)

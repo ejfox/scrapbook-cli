@@ -841,3 +841,109 @@ export async function displayScrapJson(scrap_id, options = {}) {
     process.exit(1);
   }
 }
+
+export async function queryFinancialAssets(options = {}) {
+  const { ticker, sentiment_min, sentiment_max, tracked_only = false, verbose = false } = options;
+
+  try {
+    // Load all bookmarks with financial analysis
+    const tableName = config.database?.table || "scraps";
+    const selectFields = "id,scrap_id,title,url,created_at,financial_analysis,source,tags";
+
+    // Supabase has a 1000-row limit per query, so paginate through all data
+    let allData = [];
+    let offset = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select(selectFields)
+        .range(offset, offset + pageSize - 1);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+      } else {
+        allData = allData.concat(data);
+        if (data.length < pageSize) {
+          hasMore = false;
+        }
+        offset += pageSize;
+      }
+    }
+
+    if (verbose) {
+      console.error(`Loaded ${allData.length} scraps for financial analysis`);
+    }
+
+    // Aggregate financial data
+    const assetMap = new Map(); // Ticker -> asset data
+    const scrapsByAsset = new Map(); // Ticker -> array of scraps
+
+    allData.forEach(scrap => {
+      if (!scrap.financial_analysis) return;
+
+      const assets = tracked_only
+        ? scrap.financial_analysis.tracked_assets || []
+        : (scrap.financial_analysis.discovered_assets || []);
+
+      assets.forEach(asset => {
+        const assetKey = asset.ticker || asset.symbol || 'UNKNOWN';
+
+        // Filter by ticker if specified
+        if (ticker && !assetKey.toLowerCase().includes(ticker.toLowerCase())) {
+          return;
+        }
+
+        // Filter by sentiment range if specified
+        const sentimentScore = asset.sentiment_score || 0;
+        if (sentiment_min !== undefined && sentimentScore < sentiment_min) return;
+        if (sentiment_max !== undefined && sentimentScore > sentiment_max) return;
+
+        // Aggregate asset data
+        if (!assetMap.has(assetKey)) {
+          assetMap.set(assetKey, {
+            ticker: assetKey,
+            name: asset.name,
+            asset_type: asset.asset_type,
+            mention_count: 0,
+            sentiment_scores: [],
+            scraps: []
+          });
+        }
+
+        const assetData = assetMap.get(assetKey);
+        assetData.mention_count++;
+        assetData.sentiment_scores.push(sentimentScore);
+        assetData.scraps.push({
+          id: scrap.id,
+          scrap_id: scrap.scrap_id,
+          title: scrap.title,
+          url: scrap.url,
+          created_at: scrap.created_at,
+          sentiment_score: sentimentScore,
+          sentiment_reasoning: asset.sentiment_reasoning
+        });
+      });
+    });
+
+    // Calculate aggregate sentiment
+    const results = Array.from(assetMap.values()).map(asset => ({
+      ...asset,
+      avg_sentiment: asset.sentiment_scores.length > 0
+        ? asset.sentiment_scores.reduce((a, b) => a + b, 0) / asset.sentiment_scores.length
+        : 0,
+      min_sentiment: Math.min(...asset.sentiment_scores),
+      max_sentiment: Math.max(...asset.sentiment_scores)
+    }));
+
+    // Sort by mention count descending
+    return results.sort((a, b) => b.mention_count - a.mention_count);
+  } catch (error) {
+    console.error(`Error querying financial assets: ${error.message}`);
+    throw error;
+  }
+}
