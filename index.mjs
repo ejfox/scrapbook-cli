@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { loadBookmarks, displayScrapJson, searchBookmarks, queryByEntity, formatBookmarksForFzf } from "./database.js";
+import { loadBookmarks, displayScrapJson, searchBookmarks, queryByEntity, queryByEntityWithDepth, formatBookmarksForFzf } from "./database.js";
 import { loadConfig } from "./config.js";
 import blessed from "blessed";
 import { createUI, setupKeyboardShortcuts, displayHelp } from "./tui.js";
@@ -414,13 +414,20 @@ program
 program
   .command("entity <name>")
   .description("Query knowledge graph by entity name")
+  .option("--depth <n>", "Traverse N levels deep", parseInt)
   .option("--json", "Output full data as JSON")
   .option("--graph", "Output graph structure only")
   .option("--connections", "Show connections only")
   .action(async (name, options) => {
     loadConfig({ silent: true });
     try {
-      const result = await queryByEntity(name);
+      // Default depth to 1 if not specified
+      const depth = options.depth ? parseInt(options.depth) : 1;
+
+      // Use depth traversal for depth > 1, otherwise use standard query
+      const result = depth > 1
+        ? await queryByEntityWithDepth(name, depth)
+        : await queryByEntity(name);
 
       if (options.graph) {
         console.log(JSON.stringify(result.graph, null, 2));
@@ -431,7 +438,14 @@ program
       } else {
         // Human-readable output
         console.log(`\nEntity: ${result.query}`);
-        console.log(`Found in ${result.total_scraps} scraps\n`);
+        if (result.depth) {
+          console.log(`Traversal depth: ${result.depth}`);
+        }
+        console.log(`Found in ${result.total_scraps} scraps`);
+        if (result.total_entities) {
+          console.log(`Connected entities: ${result.total_entities}`);
+        }
+        console.log();
 
         if (result.connections.length > 0) {
           console.log('Connected entities:');

@@ -567,6 +567,220 @@ export async function queryByEntity(entityName, options = {}) {
   }
 }
 
+/**
+ * Query scraps by entity name with depth-based traversal
+ * Explores N hops away from the initial entity through relationship chains
+ */
+export async function queryByEntityWithDepth(entityName, depth = 1) {
+  const tableName = config.database?.table || "scraps";
+  const selectFields = config.database?.default_select ||
+    "scrap_id,id,created_at,updated_at,source,type,content,url,title,tags,concept_tags,summary,relationships,location,latitude,longitude,metadata,content_type,published_at,financial_analysis,extraction_confidence,screenshot_url,shared";
+
+  try {
+    const { data, error } = await supabase
+      .from(tableName)
+      .select(selectFields)
+      .not('relationships', 'is', null);
+
+    if (error) throw error;
+
+    // Helper: Extract entity name from relationship node (handle string or object)
+    const getEntityName = (node) => {
+      if (typeof node === 'string') return node.toLowerCase().trim();
+      if (node && node.name) return String(node.name).toLowerCase().trim();
+      return '';
+    };
+
+    // Depth 1: Use original function
+    if (depth <= 1) {
+      return queryByEntity(entityName);
+    }
+
+    // Multi-depth traversal
+    const normalizedQuery = entityName.toLowerCase().trim();
+    const entityDepthMap = new Map(); // entity -> depth level
+    const allRelationships = new Map(); // entity -> array of relationship objects
+    const allScraps = new Map(); // scrap_id -> scrap object
+    const relatedEntities = new Set(); // Track all entities found
+
+    // Initialize with query entity
+    entityDepthMap.set(normalizedQuery, 0);
+
+    // BFS traversal through depths
+    for (let currentDepth = 1; currentDepth <= depth; currentDepth++) {
+      const entitiesToExplore = Array.from(entityDepthMap.entries())
+        .filter(([_, d]) => d === currentDepth - 1)
+        .map(([entity]) => entity);
+
+      for (const searchEntity of entitiesToExplore) {
+        // Find all scraps mentioning this entity
+        const mentioningScraps = data.filter(scrap => {
+          if (!scrap.relationships || !Array.isArray(scrap.relationships)) return false;
+
+          return scrap.relationships.some(rel => {
+            const source = getEntityName(rel.source);
+            const target = getEntityName(rel.target);
+            return source.includes(searchEntity) || target.includes(searchEntity);
+          });
+        });
+
+        // Extract connected entities from these scraps
+        mentioningScraps.forEach(scrap => {
+          allScraps.set(scrap.scrap_id, scrap);
+
+          if (scrap.relationships && Array.isArray(scrap.relationships)) {
+            scrap.relationships.forEach(rel => {
+              const source = getEntityName(rel.source);
+              const target = getEntityName(rel.target);
+
+              if (!source || !target) return;
+
+              // If source matches current entity, target is connected
+              if (source.includes(searchEntity)) {
+                if (!entityDepthMap.has(target) && !target.includes(searchEntity)) {
+                  entityDepthMap.set(target, currentDepth);
+                }
+                relatedEntities.add(target);
+
+                // Track this relationship
+                if (!allRelationships.has(target)) {
+                  allRelationships.set(target, []);
+                }
+                allRelationships.get(target).push({
+                  from: searchEntity,
+                  type: rel.type || rel.relationship || 'RELATED_TO',
+                  count: 1
+                });
+              }
+
+              // If target matches current entity, source is connected
+              if (target.includes(searchEntity)) {
+                if (!entityDepthMap.has(source) && !source.includes(searchEntity)) {
+                  entityDepthMap.set(source, currentDepth);
+                }
+                relatedEntities.add(source);
+
+                // Track this relationship
+                if (!allRelationships.has(source)) {
+                  allRelationships.set(source, []);
+                }
+                allRelationships.get(source).push({
+                  from: searchEntity,
+                  type: rel.type || rel.relationship || 'RELATED_TO',
+                  count: 1
+                });
+              }
+            });
+          }
+        });
+      }
+    }
+
+    // Build entities array with depth info
+    const entities = Array.from(entityDepthMap.entries())
+      .filter(([entity]) => entity !== normalizedQuery)
+      .map(([entity, entityDepth]) => {
+        const relationships = allRelationships.get(entity) || [];
+        const scrapsForEntity = data.filter(scrap => {
+          return scrap.relationships?.some(rel => {
+            const source = getEntityName(rel.source);
+            const target = getEntityName(rel.target);
+            return source.includes(entity) || target.includes(entity);
+          });
+        });
+
+        return {
+          name: entity,
+          depth: entityDepth,
+          mention_count: scrapsForEntity.length,
+          relationships: relationships
+        };
+      });
+
+    // Build connections array (all relationships)
+    const connections = [];
+    const connectedScraps = new Map();
+
+    data.forEach(scrap => {
+      if (!scrap.relationships) return;
+
+      scrap.relationships.forEach(rel => {
+        const source = getEntityName(rel.source);
+        const target = getEntityName(rel.target);
+
+        if (!source || !target) return;
+
+        const isSource = source.includes(normalizedQuery) || normalizedQuery.includes(source);
+        const isTarget = target.includes(normalizedQuery) || normalizedQuery.includes(target);
+
+        if (isSource || isTarget) {
+          const relType = rel.type || rel.relationship || 'RELATED_TO';
+          const key = `${source}:${target}:${relType}`;
+
+          let conn = connections.find(c => c.key === key);
+          if (!conn) {
+            conn = {
+              key: key,
+              source: source,
+              target: target,
+              relationship: relType,
+              count: 0
+            };
+            connections.push(conn);
+          }
+          conn.count++;
+          connectedScraps.set(scrap.scrap_id, scrap);
+        }
+      });
+    });
+
+    // Build graph with depth info
+    const nodes = [{ id: normalizedQuery, type: 'query', depth: 0, count: 0 }];
+    const edges = [];
+
+    entities.forEach(entity => {
+      nodes.push({
+        id: entity.name,
+        type: 'connected',
+        depth: entity.depth,
+        count: entity.mention_count
+      });
+    });
+
+    connections.forEach(conn => {
+      edges.push({
+        source: conn.source,
+        target: conn.target,
+        relationship: conn.relationship,
+        count: conn.count
+      });
+    });
+
+    return {
+      query: entityName,
+      depth: depth,
+      total_scraps: allScraps.size,
+      total_entities: entityDepthMap.size - 1, // Exclude query entity itself
+      scraps: Array.from(allScraps.values()),
+      entities: entities,
+      connections: connections.map(c => ({
+        entity: c.target,
+        relationship: c.relationship,
+        direction: 'outgoing',
+        count: c.count
+      })),
+      graph: {
+        nodes: nodes,
+        edges: edges
+      }
+    };
+
+  } catch (error) {
+    console.error("Error querying by entity with depth:", error);
+    throw error;
+  }
+}
+
 export async function displayScrapJson(scrap_id, options = {}) {
   const tableName = config.database?.table || "scraps";
 
